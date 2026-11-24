@@ -413,6 +413,15 @@
   document.addEventListener('change', e => { if (e.target.id === 'aShow') { ['#aPin', '#aPin2'].forEach(s => { const i = $(s); if (i) i.type = e.target.checked ? 'text' : 'password'; }); return; }
   if (e.target.id === 'aStaff') { SL.staffReg = e.target.checked; const keep = { n: v('#aName'), p: v('#aPhone') }; authView(); if ($('#aName')) $('#aName').value = keep.n; $('#aPhone').value = keep.p; } });
 
+  const why = e => {
+    const c = String((e && (e.code || e.message)) || e || '');
+    if (/operation-not-allowed|admin-restricted/.test(c)) return 'فعّل الدخول المجهول: Firebase ← Authentication ← Sign-in method ← Anonymous ← Enable';
+    if (/api-key/.test(c)) return 'مفتاح API في config.js غير صحيح — انسخه من Firebase بالنسخ واللصق';
+    if (/unauthorized-domain/.test(c)) return 'أضف cane-studio-dev.github.io في Firebase ← Authentication ← Settings ← Authorized domains';
+    if (/permission-denied|not-found/.test(c)) return 'تأكد أنك أنشأت Firestore Database ونشرت القواعد (Rules) ثم Publish';
+    if (/network|timeout|unavailable/.test(c)) return 'تعذّر الاتصال بـ Firebase — تأكد من الإنترنت ومن إنشاء Firestore';
+    return 'خطأ غير متوقع: ' + c;
+  };
   const enter = () => { sessionStorage.setItem('unlocked', '1'); SL.save('me', SL.me); SL.tab = isStaff() ? 'admin' : 'home'; SL.save('lastPhone', SL.me.phone); SL.shell(); SL.startListening(); setTimeout(SL.showSalawat, 700); SL.pullMine(); SL.flush(); };
   async function staffAuth(name, phone, code, pin, cityId) {
     if (!SL.cloud.enabled) throw 'حساب الإدارة يتطلب ربط التطبيق بـ Firebase أولاً (راجع ملف README).';
@@ -421,14 +430,14 @@
     const isSuper = name.trim().toUpperCase() === CFG.adminName, role = isSuper ? 'super' : 'admin';
     const proof = await SL.sha256(code), u = await SL.ensureAuth();
     try { await SL.fs().collection('staff').doc(u.uid).set({ name, phone, role, proof, ts: Date.now() }); }
-    catch (e) { throw e && e.code === 'permission-denied' ? 'رمز الإشراف غير صحيح.' : 'تعذّر الاتصال بالخادم، حاول مرة أخرى.'; }
+    catch (e) { throw e && e.code === 'permission-denied' ? 'رمز الإشراف غير صحيح، أو لم تُنشر القواعد (Rules) بعد.' : why(e); }
     return { role, name, phone, sid: await SL.sidOf(phone), cityId, pinHash: pin ? await SL.hashPin(pin, phone) : null, createdAt: Date.now() };
   }
   SL.act.doRegister = async el => {
     const login = SL.authMode === 'login', st = SL.staffReg;
     const name = SL.normName(v('#aName')), phone = SL.normPhone(v('#aPhone')), pin = SL.latinDigits(v('#aPin')).trim(), pin2 = SL.latinDigits(v('#aPin2')).trim();
     const code = SL.normCode(v('#aCode')), wallet = !!($('#aWallet') || {}).checked, cityId = v('#aCity') || SL.settings.cityId;
-    const bad = m => ui.toast(m, 3800);
+    const bad = m => ui.toast(m, 8000);
     if (name.length < 3) return bad('اكتب اسمك الكامل');
     if (!st && name.split(' ').length < 2) return bad('اكتب الاسم الكامل (اسمين على الأقل)');
     if (!SL.validPhone(phone)) return bad('رقم التليفون غير صحيح — اكتبه بالشكل 01xxxxxxxxx');
@@ -449,7 +458,7 @@
       }
       SL.me = me; SL.settings.cityId = cityId; SL.saveSettings(); enter();
       ui.toast(`أهلاً بك يا ${name.split(' ')[0]} 🤍`);
-    } catch (e) { bad(typeof e === 'string' ? e : 'حدث خطأ، حاول مرة أخرى'); el.disabled = false; el.textContent = old; }
+    } catch (e) { bad(typeof e === 'string' ? e : why(e)); el.disabled = false; el.textContent = old; }
   };
   SL.act.doLogin = async el => {
     const phone = SL.normPhone(v('#aPhone')), pin = SL.latinDigits(v('#aPin')).trim();
@@ -466,7 +475,7 @@
       SL.save('loginFail', { n: 0, until: 0 });
       SL.me = { role: 'student', name: u.name, phone, sid: u.sid, cityId: u.cityId || SL.settings.cityId, wallet: !!u.wallet, pinHash: u.pinHash, createdAt: u.ts };
       if (u.cityId) { SL.settings.cityId = u.cityId; SL.saveSettings(); } enter();
-    } catch (e) { ui.toast(typeof e === 'string' ? e : 'تعذّر تسجيل الدخول — تأكد من الاتصال', 3800); el.disabled = false; el.textContent = old; }
+    } catch (e) { ui.toast(typeof e === 'string' ? e : why(e), 8000); el.disabled = false; el.textContent = old; }
   };
 
   /* ---------- قفل التطبيق ---------- */
