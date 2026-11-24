@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#14876a"/>
+      <stop offset="0.55" stop-color="#0a4f3c"/>
+      <stop offset="1" stop-color="#042a21"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbeeb8"/>
+      <stop offset="0.45" stop-color="#e0b95c"/>
+      <stop offset="1" stop-color="#a97a26"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe9a6" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#ffe9a6" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#ffe9a6" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="cres">
+      <rect width="512" height="512" fill="#fff"/>
+      <circle cx="270" cy="104" r="27" fill="#000"/>
+    </mask>
+    <clipPath id="sq"><rect width="512" height="512" rx="116"/></clipPath>
+  </defs>
+  <g clip-path="url(#sq)">
+    <rect width="512" height="512" fill="url(#bg)"/>
+    <!-- geometric star pattern -->
+    <g fill="none" stroke="#f3d98b" stroke-opacity="0.13" stroke-width="2.4" transform="translate(256 262)">
+      <rect x="-170" y="-170" width="340" height="340"/>
+      <rect x="-170" y="-170" width="340" height="340" transform="rotate(45)"/>
+      <circle r="170"/><circle r="120"/>
+      <rect x="-120" y="-120" width="240" height="240" transform="rotate(22.5)"/>
+      <rect x="-120" y="-120" width="240" height="240" transform="rotate(67.5)"/>
+    </g>
+    <circle cx="256" cy="270" r="190" fill="url(#halo)"/>
+
+    <!-- crescent + finial -->
+    <circle cx="256" cy="104" r="34" fill="url(#gold)" mask="url(#cres)"/>
+    <path d="M256 138v-4M256 168v-34" stroke="url(#gold)" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="256" cy="128" r="6" fill="url(#gold)"/>
+
+    <!-- main onion dome -->
+    <path d="M168 372C168 304 216 270 256 176C296 270 344 304 344 372Z" fill="url(#gold)"/>
+    <path d="M256 190C246 232 222 262 196 288" stroke="#fff6cf" stroke-opacity=".55" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <!-- drum + hall -->
+    <rect x="150" y="372" width="212" height="22" rx="6" fill="url(#gold)"/>
+    <rect x="160" y="394" width="192" height="56" fill="url(#gold)"/>
+    <!-- arches -->
+    <path d="M178 450v-30a18 18 0 0 1 36 0v30z" fill="#073b2e"/>
+    <path d="M238 450v-40a18 18 0 0 1 36 0v40z" fill="#073b2e"/>
+    <path d="M298 450v-30a18 18 0 0 1 36 0v30z" fill="#073b2e"/>
+
+    <!-- minarets -->
+    <g fill="url(#gold)">
+      <rect x="82" y="262" width="26" height="188" rx="5"/>
+      <rect x="74" y="300" width="42" height="9" rx="4.5"/>
+      <path d="M82 262l13-52l13 52z"/>
+      <circle cx="95" cy="200" r="5.5"/>
+      <rect x="404" y="262" width="26" height="188" rx="5"/>
+      <rect x="396" y="300" width="42" height="9" rx="4.5"/>
+      <path d="M404 262l13-52l13 52z"/>
+      <circle cx="417" cy="200" r="5.5"/>
+    </g>
+    <path d="M95 322v26M95 372v26M417 322v26M417 372v26" stroke="#073b2e" stroke-width="7" stroke-linecap="round" opacity=".6"/>
+    <rect x="52" y="450" width="408" height="16" rx="8" fill="url(#gold)"/>
+  </g>
+</svg>
