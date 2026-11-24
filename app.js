@@ -194,7 +194,7 @@
         <div class="sub">أتممت اليوم <b>${N(doneN)}</b> من ٥ صلوات</div></div>
       ${installCard()}${heroCards(allDays(), true)}
       <div class="plist">${states.map(prayerRow).join('')}</div>
-      ${dhikrBoard()}
+      ${dhikrBoard()}${sduaCards()}${quranCard()}
       <div class="card"><div class="row"><h3 class="grow">📖 ورد اليوم</h3>${wdone ? '<span class="badge ok">✓ أتممته</span>' : wird ? '<span class="badge acc">جديد</span>' : ''}</div>
         ${wird ? `<div class="muted small" style="margin-bottom:8px">${E(wird.title || '')}</div><button class="btn block ${wdone ? 'sec' : ''}" data-act="tab" data-t="wird">${wdone ? 'عرض الورد' : 'اقرأ الورد وسجّل إتمامه'}</button>` : '<div class="empty" style="padding:6px">لم تنشر الإدارة ورد اليوم بعد.</div>'}</div>
       ${(SL.cache.ann || []).filter(a => a.kind !== 'honor' && a.show !== false).slice(0, 4).map(a => `<div class="card"><div class="row"><h3 class="grow">📢 ${E(a.title || 'إعلان')}</h3><span class="small muted">${SL.fmtShort(SL.dkey(new Date(a.ts)))}</span></div><div style="line-height:1.9;white-space:pre-wrap">${E(a.text)}</div></div>`).join('')}
@@ -277,6 +277,27 @@
     const ts = SL.dhikrTasks(); if (!ts.length) return '';
     const z = SL.actGet(), dn = ts.filter(t => (z['t_' + t.id] || {}).done).length;
     return `<div class="card" style="padding:14px"><div class="row" style="margin-bottom:10px"><h3 class="grow" style="margin:0">${title}</h3><span class="badge ${dn === ts.length ? 'ok' : ''}">${N(dn)}/${N(ts.length)}</span></div><div class="plist">${ts.map(dhikrRow).join('')}</div></div>`;
+  };
+  /* ---------- القرآن اليومي + أدعية الإدارة (زي الورد) ---------- */
+  const quranCard = () => {
+    const e = SL.actGet().q || {}, n = e.n || 0, g = Math.max(1, +cs().quranGoal || 5), done = n >= g, p = Math.min(100, Math.round(n / g * 100));
+    return `<div class="card" style="padding:14px"><div class="row" style="margin-bottom:8px"><h3 class="grow" style="margin:0">📖 القرآن اليوم</h3><span class="badge ${done ? 'ok' : ''}">${done ? '✓ أتممت الهدف' : N(n) + '/' + N(g) + ' صفحة'}</span></div>
+      <div class="bar"><i style="width:${p}%"></i></div>
+      <div class="row" style="margin-top:10px"><button class="btn sec grow" data-act="qAdd" data-d="-1">−١</button><button class="btn grow" data-act="qAdd" data-d="1">+١ صفحة</button><button class="btn grow" data-act="qAdd" data-d="5">+٥</button></div></div>`;
+  };
+  SL.act.qAdd = el => {
+    const e = SL.actGet().q || { n: 0 }, g = Math.max(1, +cs().quranGoal || 5), n = Math.max(0, Math.min(604, (e.n || 0) + (+el.dataset.d)));
+    const was = (e.n || 0) >= g; SL.actSet('q', { n, g, ts: Date.now(), done: n >= g ? (e.done || Date.now()) : 0, title: 'القرآن' });
+    if (!was && n >= g) { SL.sound.play('wird'); ui.toast('ما شاء الله، أتممت وردك من القرآن 🤍'); } else SL.sound.play('tick');
+    render(true);
+  };
+  const sduaCards = () => {
+    const z = SL.actGet(), items = (SL.cache.dhikr || []).filter(x => x.kind === 'dua' && x.show !== false && x.text).slice(0, 3); if (!items.length) return '';
+    return items.map(x => { const e = z['d_' + x.id] || {}, done = !!e.done; return `<div class="card" style="padding:14px"><div class="row" style="margin-bottom:6px"><h3 class="grow" style="margin:0">🤲 ${E(x.title || 'دعاء من الإدارة')}</h3>${done ? `<span class="badge ok">✓ ${SL.fmtTime(e.done)}</span>` : ''}</div><div class="duaitem" style="margin:0 0 10px">${E(x.text)}</div>${done ? '' : `<button class="btn" data-act="sduaRead" data-id="${E(x.id)}">قرأته ✓</button>`}</div>`; }).join('');
+  };
+  SL.act.sduaRead = el => {
+    const x = (SL.cache.dhikr || []).find(y => y.id === el.dataset.id); if (!x) return; const t = Date.now();
+    SL.actSet('d_' + x.id, { n: 1, g: 1, ts: t, done: t, title: x.title || x.text.slice(0, 30) }); SL.markDua(x.text); SL.sound.play('wird'); ui.toast('تقبّل الله 🤍'); render(true);
   };
   SL.act.dhikrOpen = el => {
     const t = SL.dhikrTasks().find(x => x.id === el.dataset.id); if (!t) return; const key = 't_' + t.id; SL.sound.unlock();
@@ -390,8 +411,8 @@
     if (S.showBoard === false) return h + '<div class="card empty">لوحة الشرف مخفية مؤقتاً من الإدارة.</div>';
     h += `<div class="card"><div class="row"><h2 class="grow">🏆 لوحة الشرف</h2><span class="chip">${SL.honorPrev ? 'الدورة السابقة' : 'تتجدد بعد ' + N(left) + ' يوم'}</span></div>
       <div class="seg" style="margin:6px 0 12px"><button data-act="honorSw" data-p="0" class="${!SL.honorPrev ? 'on' : ''}">الدورة الحالية</button><button data-act="honorSw" data-p="1" class="${SL.honorPrev ? 'on' : ''}">الدورة السابقة</button></div>
-      <div class="hint" style="margin-bottom:10px">من ${SL.fmtShort(rng.from)} إلى ${SL.fmtShort(rng.to)} · النقاط = الصلاة (التزام + سرعة + مسجد) + التسبيح + الأذكار + الأدعية + الورد</div>
-      ${board.length ? `<div class="podium">${board.map((b, i) => `<div class="hrow ${b.sid === me.sid ? 'me' : ''}"><div class="rk">${medals[i]}</div><div><div class="nm">${E(b.name)}${b.sid === me.sid ? ' (أنت)' : ''}</div><div class="small muted">${N(b.cnt)} صلاة · ${N(b.dh)} تسبيح · ${N(b.ad)} أذكار · ${N(b.du)} دعاء · ${N(b.wd)} ورد</div></div><div class="pt num">${N(b.pts)}<div class="small muted" style="font-weight:400">نقطة</div></div></div>`).join('')}</div>` : '<div class="empty">لا توجد بيانات بعد في هذه الدورة. ابدأ بتسجيل صلواتك لتكون أول المتصدرين 🌟</div>'}</div>`;
+      <div class="hint" style="margin-bottom:10px">من ${SL.fmtShort(rng.from)} إلى ${SL.fmtShort(rng.to)} · النقاط = الصلاة (التزام + سرعة + مسجد) + التسبيح + الأذكار + الأدعية + القرآن + الورد</div>
+      ${board.length ? `<div class="podium">${board.map((b, i) => `<div class="hrow ${b.sid === me.sid ? 'me' : ''}"><div class="rk">${medals[i]}</div><div><div class="nm">${E(b.name)}${b.sid === me.sid ? ' (أنت)' : ''}</div><div class="small muted">${N(b.cnt)} صلاة · ${N(b.dh)} تسبيح · ${N(b.ad)} أذكار · ${N(b.du)} دعاء · ${N(b.qr)} صفحة قرآن · ${N(b.wd)} ورد</div></div><div class="pt num">${N(b.pts)}<div class="small muted" style="font-weight:400">نقطة</div></div></div>`).join('')}</div>` : '<div class="empty">لا توجد بيانات بعد في هذه الدورة. ابدأ بتسجيل صلواتك لتكون أول المتصدرين 🌟</div>'}</div>`;
     return h;
   };
   SL.act.honorSw = el => { SL.honorPrev = el.dataset.p === '1'; render(); };

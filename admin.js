@@ -56,12 +56,14 @@
     return `<div class="pc n"><small>${p.name}</small><i>–</i><em class="num">${SL.fmtTime(C.t[p.id])}</em></div>`;
   };
   const zOf = (C, u) => ((SL.cache.actsAll || {})[`${u.sid}_${C.dk}`] || {}).z || {};
-  const zSum = z => { let dh = 0, ad = 0, du = 0, last = 0; for (const k in z) { const e = z[k] || {}; if (k[0] === 't' && e.done) dh++; if (k[0] === 'a' && e.done) ad++; if (k[0] === 'u') du += e.n || 0; if ((e.ts || 0) > last) last = e.ts; } return { dh, ad, du, last }; };
-  const actChips = (C, u) => { const s = zSum(zOf(C, u)), nt = SL.dhikrTasks().length; return `<div class="acts"><span class="chip ${s.dh ? 'on' : ''}">📿 ${N(s.dh)}/${N(nt)} تسبيح</span><span class="chip ${s.ad ? 'on' : ''}">🌅 ${N(s.ad)}/${N(3)} أذكار</span><span class="chip ${s.du ? 'on' : ''}">🤲 ${N(s.du)} دعاء</span></div>`; };
+  const zSum = z => { let dh = 0, ad = 0, du = 0, qr = 0, sd = 0, last = 0; for (const k in z) { const e = z[k] || {}; if (k[0] === 't' && e.done) dh++; if (k[0] === 'a' && e.done) ad++; if (k[0] === 'u') du += e.n || 0; if (k === 'q') qr += e.n || 0; if (k[0] === 'd' && e.done) sd++; if ((e.ts || 0) > last) last = e.ts; } return { dh, ad, du, qr, sd, last }; };
+  const actChips = (C, u) => { const s = zSum(zOf(C, u)), nt = SL.dhikrTasks().length; return `<div class="acts"><span class="chip ${s.dh ? 'on' : ''}">📿 ${N(s.dh)}/${N(nt)} تسبيح</span><span class="chip ${s.ad ? 'on' : ''}">🌅 ${N(s.ad)}/${N(3)} أذكار</span><span class="chip ${s.du ? 'on' : ''}">🤲 ${N(s.du)} دعاء</span><span class="chip ${s.qr ? 'on' : ''}">📖 ${N(s.qr)} صفحة</span></div>`; };
   const actDetail = (C, u) => {
     const z = zOf(C, u), tasks = SL.dhikrTasks(), sets = window.ADHKAR_DATA, ue = z.u;
     const line = (label, e, g, doneTs) => `<div class="setrow"><span>${label}</span>${e ? `<span><b class="num">${N(e.n || 0)}/${N(g)}</b> <span class="muted small num">${e.done ? '✓ ' + SL.fmtTime(e.done) : 'آخر نشاط ' + SL.fmtTime(e.ts)}</span></span>` : '<span class="muted">–</span>'}</div>`;
-    return `<div class="hint" style="margin:12px 0 6px">📿 التسبيح والذكر</div><div class="card" style="box-shadow:none;padding:6px 14px">${tasks.map(t => line(`${t.icon} ${E(t.title)}`, z['t_' + t.id], t.g)).join('') || '<div class="empty">لا توجد أذكار</div>'}</div>
+    const sduas = (SL.cache.dhikr || []).filter(x => x.kind === 'dua' && x.show !== false), qe = z.q, qg = Math.max(1, +(settings().quranGoal) || 5);
+    const extra = `<div class="hint" style="margin:12px 0 6px">📖 القرآن اليوم</div><div class="card" style="box-shadow:none;padding:6px 14px"><div class="setrow"><span>عدد الصفحات</span>${qe ? `<span><b class="num">${N(qe.n || 0)}/${N(qg)}</b> <span class="muted small num">${qe.done ? '✓ ' + SL.fmtTime(qe.done) : 'آخر نشاط ' + SL.fmtTime(qe.ts)}</span></span>` : '<span class="muted">–</span>'}</div></div>${sduas.length ? `<div class="hint" style="margin:12px 0 6px">🤲 أدعية الإدارة</div><div class="card" style="box-shadow:none;padding:6px 14px">${sduas.map(x => { const e = z['d_' + x.id]; return `<div class="setrow"><span>${E(x.title || (x.text || '').slice(0, 30))}</span>${e && e.done ? `<span class="muted small num">✓ ${SL.fmtTime(e.done)}</span>` : '<span class="muted">–</span>'}</div>`; }).join('')}</div>` : ''}`;
+    return extra + `<div class="hint" style="margin:12px 0 6px">📿 التسبيح والذكر</div><div class="card" style="box-shadow:none;padding:6px 14px">${tasks.map(t => line(`${t.icon} ${E(t.title)}`, z['t_' + t.id], t.g)).join('') || '<div class="empty">لا توجد أذكار</div>'}</div>
       <div class="hint" style="margin:12px 0 6px">🌅 الأذكار</div><div class="card" style="box-shadow:none;padding:6px 14px">${Object.keys(sets).map(k => line(`${sets[k].icon} ${sets[k].name}`, z['a_' + k], (z['a_' + k] || {}).g || sets[k].items.length)).join('')}</div>
       <div class="hint" style="margin:12px 0 6px">🤲 الأدعية التي قرأها (${N(ue ? ue.n || 0 : 0)})</div>${ue && ue.l && ue.l.length ? `<div class="card" style="box-shadow:none;padding:8px 14px;font-family:Amiri,serif;line-height:2;font-size:16px">${ue.l.slice(-8).reverse().map(t => '• ' + E(t) + '…').join('<br>')}<div class="muted small" style="font-family:Tajawal">آخر قراءة ${SL.fmtTime(ue.ts)}</div></div>` : '<div class="muted small">لم يقرأ أدعية اليوم.</div>'}`;
   };
@@ -110,6 +112,10 @@
     const rows = us.map(u => { const z = zOf(C, u), s = zSum(z); return { u, s }; }).sort((x, y) => (y.s.dh + y.s.ad + y.s.du) - (x.s.dh + x.s.ad + x.s.du) || x.u.name.localeCompare(y.u.name, 'ar'));
     return `<div class="card"><h2 style="margin:0 0 10px;font-size:18px">📿 إنجاز اليوم لكل ذكر</h2><div class="col">${tasks.length ? tasks.map(t => { const n = us.filter(u => (zOf(C, u)['t_' + t.id] || {}).done).length, p = us.length ? Math.round(n / us.length * 100) : 0; return `<div class="msg"><div class="meta" style="margin:0"><b>${t.icon} ${E(t.title)}</b><span class="num">${N(n)}/${N(us.length)}</span></div><div class="bar"><i style="width:${p}%"></i></div></div>`; }).join('') : '<div class="empty">لا توجد أذكار مفعّلة.</div>'}</div>
       <div class="setrow" style="margin-top:8px"><span>إظهار التسبيحات الافتراضية (٥ أذكار × ١٠٠)</span><label class="switch"><input type="checkbox" data-aset="showDefaultDhikr" ${S.showDefaultDhikr !== false ? 'checked' : ''}><i></i></label></div></div>
+    <div class="card"><h2 style="margin:0 0 10px;font-size:18px">📖 القرآن اليومي</h2>
+      <div class="row"><label class="f grow" style="margin:0">الهدف اليومي (صفحات)<input type="number" id="qGoal" value="${Math.max(1, +S.quranGoal || 5)}" min="1" max="100" inputmode="numeric"></label><button class="btn sm" data-act="qGoalSave" style="align-self:flex-end">حفظ</button></div>
+      <div class="hint" style="margin-top:8px">${N(us.filter(u => (zOf(C, u).q || {}).n >= (+S.quranGoal || 5)).length)} من ${N(us.length)} حققوا الهدف اليوم · إجمالي ${N(us.reduce((t, u) => t + ((zOf(C, u).q || {}).n || 0), 0))} صفحة</div></div>
+    ${items.some(x => x.kind === 'dua') ? `<div class="card"><h2 style="margin:0 0 10px;font-size:18px">🤲 قراءة أدعية الإدارة اليوم</h2><div class="col">${items.filter(x => x.kind === 'dua').map(x => { const who = us.filter(u => (zOf(C, u)['d_' + x.id] || {}).done); return `<div class="msg"><div class="meta" style="margin:0"><b>${E(x.title || (x.text || '').slice(0, 30))}</b><span class="num">${N(who.length)}/${N(us.length)}</span></div><div class="bar"><i style="width:${us.length ? Math.round(who.length / us.length * 100) : 0}%"></i></div><div class="muted small" style="margin-top:6px">${who.length ? who.map(u => E(u.name)).join('، ') : 'لم يقرأه أحد بعد'}</div></div>`; }).join('')}</div></div>` : ''}
     <div class="card"><h2 style="margin:0 0 10px;font-size:18px">➕ إضافة للطلاب</h2><div class="col">
       <div class="seg"><button data-act="actKind" data-k="dhikr" class="${isD ? 'on' : ''}">ذكر / تسبيح</button><button data-act="actKind" data-k="dua" class="${!isD ? 'on' : ''}">دعاء</button></div>
       <input type="text" id="xTitle" placeholder="${isD ? 'اسم الذكر (مثال: سبحان الله العظيم)' : 'عنوان الدعاء (اختياري)'}" maxlength="80">
@@ -118,8 +124,9 @@
       <button class="btn" data-act="actPub">نشر للجميع</button></div></div>
     <div class="card"><h3>المضاف من الإدارة (${N(items.length)})</h3><div class="col">${items.length ? items.map(x => `<div class="msg"><div class="meta"><b>${x.kind === 'dua' ? '🤲 دعاء' : '📿 ذكر'}${x.title ? ' — ' + E(x.title) : ''}</b><span class="num">${x.kind === 'dhikr' ? N(x.target) + ' مرة' : ''}</span></div>${x.text ? `<div class="small" style="white-space:pre-wrap;max-height:70px;overflow:hidden">${E(x.text)}</div>` : ''}<div class="row" style="margin-top:8px"><button class="btn sm sec" data-act="actToggle" data-i="${x.id}" data-v="${x.show === false ? 1 : 0}">${x.show === false ? 'إظهار' : 'إخفاء'}</button><button class="btn sm bad" data-act="actDel" data-i="${x.id}">حذف</button></div></div>`).join('') : '<div class="empty">لم تضف شيئاً بعد.</div>'}</div></div>
     <div class="card"><h3>📊 نشاط الطلاب اليوم</h3><div class="hint" style="margin-bottom:8px">تسبيح مكتمل · أذكار مكتملة · أدعية قرأها — اضغط على الاسم في «متابعة الطلاب» للتفاصيل.</div>
-      <div class="scroll"><table class="tbl"><thead><tr><th>الطالب</th><th>📿</th><th>🌅</th><th>🤲</th><th>آخر نشاط</th></tr></thead><tbody>${rows.length ? rows.map(r => `<tr data-act="stuInfo" data-s="${r.u.sid}" style="cursor:pointer"><td>${E(r.u.name)}</td><td>${N(r.s.dh)}</td><td>${N(r.s.ad)}</td><td>${N(r.s.du)}</td><td class="num">${r.s.last ? SL.fmtTime(r.s.last) : '–'}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">لا يوجد طلاب</td></tr>'}</tbody></table></div></div>`;
+      <div class="scroll"><table class="tbl"><thead><tr><th>الطالب</th><th>📿</th><th>🌅</th><th>🤲</th><th>📖</th><th>آخر نشاط</th></tr></thead><tbody>${rows.length ? rows.map(r => `<tr data-act="stuInfo" data-s="${r.u.sid}" style="cursor:pointer"><td>${E(r.u.name)}</td><td>${N(r.s.dh)}</td><td>${N(r.s.ad)}</td><td>${N(r.s.du)}</td><td>${N(r.s.qr)}</td><td class="num">${r.s.last ? SL.fmtTime(r.s.last) : '–'}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">لا يوجد طلاب</td></tr>'}</tbody></table></div></div>`;
   }
+  SL.act.qGoalSave = () => { const g = Math.max(1, Math.min(100, parseInt(SL.latinDigits(v('#qGoal'))) || 5)); SL.queue('settings', 'app', { quranGoal: g }); SL.cache.settings = Object.assign({}, settings(), { quranGoal: g }); ui.toast('تم حفظ الهدف ✓'); SL.render(true); };
   SL.act.actKind = el => { SL.actKind = el.dataset.k; SL.render(true); };
   SL.act.actPub = () => {
     const kind = SL.actKind, title = v('#xTitle').trim(), text = v('#xText').trim(), target = Math.max(1, Math.min(10000, parseInt(SL.latinDigits(v('#xTarget'))) || 33));
@@ -218,7 +225,7 @@
       const now = Date.now(), todayK = SL.dkey(), dates = []; for (let d = new Date(y, m - 1, 1); SL.dkey(d) <= to && SL.dkey(d) <= todayK; d = SL.addDays(d, 1)) dates.push(SL.dkey(d));
       const W = (window.APP_CFG.windowMin || 90) * 60000, expectedFor = dk => dk < todayK ? 5 : SL.PRAYERS.filter(p => SL.timesFor(SL.fromKey(dk))[p.id] + W < now).length;
       const dm = {}; days.forEach(d => { (dm[d.sid] = dm[d.sid] || {})[d.date] = d.p || {}; });
-      const acm = {}; acts.forEach(d => { const s = acm[d.sid] || (acm[d.sid] = { dh: 0, ad: 0, du: 0 }), z = zSum(d.z || {}); s.dh += z.dh; s.ad += z.ad; s.du += z.du; });
+      const acm = {}; acts.forEach(d => { const s = acm[d.sid] || (acm[d.sid] = { dh: 0, ad: 0, du: 0, qr: 0 }), z = zSum(d.z || {}); s.dh += z.dh; s.ad += z.ad; s.du += z.du; s.qr += z.qr; });
       const wdm = {}; wds.forEach(w => { (wdm[w.sid] = wdm[w.sid] || {})[w.date] = w.ts; });
       const wirdTotal = wirds.filter(w => w.date <= todayK).length;
       const exp = dates.reduce((a, d) => a + expectedFor(d), 0);
@@ -226,7 +233,7 @@
         let done = 0, mosque = 0, home = 0; const per = {};
         dates.forEach(dk => { const p = (dm[u.sid] || {})[dk] || {}; per[dk] = p; SL.PRAYERS.forEach(x => { if (p[x.id]) { done++; p[x.id].where === 'mosque' ? mosque++ : home++; } }); });
         const wdn = Object.keys(wdm[u.sid] || {}).length;
-        return { u, done, mosque, home, missed: Math.max(0, exp - done), wird: wdn, per, act: acm[u.sid] || { dh: 0, ad: 0, du: 0 } };
+        return { u, done, mosque, home, missed: Math.max(0, exp - done), wird: wdn, per, act: acm[u.sid] || { dh: 0, ad: 0, du: 0, qr: 0 } };
       }).sort((a, b) => b.done - a.done);
       REP = { ym, y, m, dates, rows, exp, wirdTotal, detail, wdm, expectedFor };
       drawReport();
@@ -236,7 +243,7 @@
   const mname = R => `${SL.monthName(R.m - 1)} ${N(R.y)}`;
   const pc = (r) => r ? (r.where === 'mosque' ? 'م' : 'ب') : '✗';
   function reportHtml(R, forPrint) {
-    const sum = `<table class="tbl"><thead><tr><th>الطالب</th><th>الهاتف</th><th>الصلوات</th><th>المسجد</th><th>البيت</th><th>النواقص</th><th>الورد</th><th>التسبيح</th><th>الأذكار</th><th>الأدعية</th></tr></thead><tbody>${R.rows.map(r => `<tr><td>${E(r.u.name)}</td><td class="num">${E(r.u.phone)}</td><td><b>${N(r.done)}</b>/${N(R.exp)}</td><td>${N(r.mosque)}</td><td>${N(r.home)}</td><td>${N(r.missed)}</td><td>${N(r.wird)}/${N(R.wirdTotal)}</td><td>${N(r.act.dh)}</td><td>${N(r.act.ad)}</td><td>${N(r.act.du)}</td></tr>`).join('')}</tbody></table>`;
+    const sum = `<table class="tbl"><thead><tr><th>الطالب</th><th>الهاتف</th><th>الصلوات</th><th>المسجد</th><th>البيت</th><th>النواقص</th><th>الورد</th><th>التسبيح</th><th>الأذكار</th><th>الأدعية</th><th>صفحات القرآن</th></tr></thead><tbody>${R.rows.map(r => `<tr><td>${E(r.u.name)}</td><td class="num">${E(r.u.phone)}</td><td><b>${N(r.done)}</b>/${N(R.exp)}</td><td>${N(r.mosque)}</td><td>${N(r.home)}</td><td>${N(r.missed)}</td><td>${N(r.wird)}/${N(R.wirdTotal)}</td><td>${N(r.act.dh)}</td><td>${N(r.act.ad)}</td><td>${N(r.act.du)}</td><td>${N(r.act.qr)}</td></tr>`).join('')}</tbody></table>`;
     const head = `<h1>صلاتي — كشف شهر ${mname(R)}</h1><div style="margin-bottom:8px;font-size:12px">المتوقع حتى اليوم: ${N(R.exp)} صلاة لكل طالب · أوراد الشهر: ${N(R.wirdTotal)} · أُعدّ بواسطة ${E(SL.me.name)} بتاريخ ${SL.fmtDate(new Date())}</div>`;
     let h = head + sum;
     if (R.detail || forPrint === 'detail') R.rows.forEach(r => {
@@ -253,8 +260,8 @@
     const R = REP, q = s => '"' + String(s).replace(/"/g, '""') + '"', L = [];
     L.push(['الطالب', 'الهاتف', 'التاريخ', ...SL.PRAYERS.map(p => p.name), 'الورد'].map(q).join(','));
     R.rows.forEach(r => R.dates.forEach(dk => { const p = r.per[dk] || {}, ex = R.expectedFor(dk); L.push([r.u.name, r.u.phone, dk, ...SL.PRAYERS.map((x, i) => p[x.id] ? (p[x.id].where === 'mosque' ? 'مسجد ' : 'بيت ') + SL.fmtTime(p[x.id].ts) : (i < ex ? 'فاتت' : '')), (R.wdm[r.u.sid] || {})[dk] ? 'تم' : ''].map(q).join(',')); }));
-    L.push(''); L.push(['الملخص', '', '', 'الصلوات', 'المسجد', 'البيت', 'النواقص', 'الورد', 'التسبيح', 'الأذكار', 'الأدعية'].map(q).join(','));
-    R.rows.forEach(r => L.push([r.u.name, r.u.phone, '', r.done, r.mosque, r.home, r.missed, r.wird, r.act.dh, r.act.ad, r.act.du].map(q).join(',')));
+    L.push(''); L.push(['الملخص', '', '', 'الصلوات', 'المسجد', 'البيت', 'النواقص', 'الورد', 'التسبيح', 'الأذكار', 'الأدعية', 'صفحات القرآن'].map(q).join(','));
+    R.rows.forEach(r => L.push([r.u.name, r.u.phone, '', r.done, r.mosque, r.home, r.missed, r.wird, r.act.dh, r.act.ad, r.act.du, r.act.qr].map(q).join(',')));
     const blob = new Blob(['﻿' + L.join('\r\n')], { type: 'text/csv;charset=utf-8' }), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = `salaty-${R.ym}.csv`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
   };

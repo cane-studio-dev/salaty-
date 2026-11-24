@@ -1,5 +1,5 @@
 /* صلاتي — Service Worker: يخزّن التطبيق كاملاً ليعمل بدون إنترنت */
-const VER = 'salaty-v1.2.0';
+const VER = 'salaty-v1.3.0';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './style.css',
   './config.js', './duas.js', './core.js', './sync.js', './app.js', './admin.js', './boot.js',

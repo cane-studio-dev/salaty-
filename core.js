@@ -164,15 +164,17 @@ window.SL = window.SL || {};
     if (k === 't') return e.done ? 8 : Math.floor(8 * Math.min(1, n / g));
     if (k === 'a') return e.done ? 6 : Math.floor(6 * Math.min(1, n / g));
     if (k === 'u') return Math.min(n, 5);
+    if (k === 'q') return Math.min(n, 10);
+    if (k === 'd') return e.done ? 4 : 0;
     return 0;
   };
   /** ترتيب شامل: الصلاة + التسبيح + الأذكار + الأدعية + الورد */
   SL.aggregateAll = (days, acts, wirds, from, to) => {
-    const m = {}; SL.aggregate(days, from, to).forEach(s => { m[s.sid] = Object.assign({ dh: 0, ad: 0, du: 0, wd: 0 }, s); });
-    const mk = (sid, name) => m[sid] || (m[sid] = { sid, name, pts: 0, cnt: 0, mosque: 0, delaySum: 0, first: Infinity, dh: 0, ad: 0, du: 0, wd: 0 });
+    const m = {}; SL.aggregate(days, from, to).forEach(s => { m[s.sid] = Object.assign({ dh: 0, ad: 0, du: 0, wd: 0, qr: 0 }, s); });
+    const mk = (sid, name) => m[sid] || (m[sid] = { sid, name, pts: 0, cnt: 0, mosque: 0, delaySum: 0, first: Infinity, dh: 0, ad: 0, du: 0, wd: 0, qr: 0 });
     for (const id in acts) {
       const d = acts[id]; if (!d || !d.date || d.date < from || d.date > to) continue; const s = mk(d.sid, d.name);
-      for (const k in (d.z || {})) { const e = d.z[k]; s.pts += SL.actPts(k, e); if (k[0] === 't' && e.done) s.dh++; if (k[0] === 'a' && e.done) s.ad++; if (k[0] === 'u') s.du += e.n || 0; }
+      for (const k in (d.z || {})) { const e = d.z[k]; s.pts += SL.actPts(k, e); if (k[0] === 't' && e.done) s.dh++; if (k[0] === 'a' && e.done) s.ad++; if (k[0] === 'u') s.du += e.n || 0; if (k === 'q') s.qr += e.n || 0; }
     }
     for (const id in wirds) { const d = wirds[id]; if (!d || !d.date || d.date < from || d.date > to) continue; const s = mk(d.sid, d.name); s.wd++; s.pts += SL.WIRD_PTS; }
     return Object.values(m).sort((a, b) => b.pts - a.pts || b.cnt - a.cnt || a.first - b.first);
