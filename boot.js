@@ -8,7 +8,7 @@
   window.addEventListener('appinstalled', () => { SL.installEvt = null; });
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) hiddenAt = Date.now();
+    if (document.hidden) { hiddenAt = Date.now(); try { SL.pushActs && SL.pushActs(); } catch (e) {} }
     else if (SL.me && SL.me.pinHash && hiddenAt && Date.now() - hiddenAt > 90000 && !SL.demo) { sessionStorage.removeItem('unlocked'); SL.showLock(); }
   });
 
@@ -29,7 +29,7 @@
     } catch (e) { /* بدون إنترنت أو خطأ مؤقت: تجاهل */ }
   }
   function forceOut(msg) {
-    ['me', 'days', 'wirdDone', 'outbox', 'cache', 'sent', 'msgSeen', 'adhkar'].forEach(SL.del); sessionStorage.clear();
+    ['me', 'days', 'wirdDone', 'outbox', 'cache', 'sent', 'msgSeen', 'adhkar', 'acts'].forEach(SL.del); sessionStorage.clear();
     alert(msg); location.reload();
   }
   SL.afterUnlock = () => { verifyAccount(); setTimeout(SL.showSalawat, 400); };

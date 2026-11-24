@@ -27,7 +27,7 @@
     const ov = $('#overlay'); ov.innerHTML = `<div class="sheet ${o.mid ? 'mid' : ''}" role="dialog">${o.mid ? '' : '<div class="grab"></div>'}${html}</div>`;
     ov.classList.add('on'); ov.onclick = e => { if (e.target === ov && !o.sticky) ui.close(); }; return $('.sheet', ov);
   };
-  ui.close = () => { const ov = $('#overlay'); ov.classList.remove('on'); ov.innerHTML = ''; };
+  ui.close = () => { const ov = $('#overlay'); ov.classList.remove('on'); ov.innerHTML = ''; const f = SL._onClose; SL._onClose = null; if (f) f(); };
   ui.confirm = (msg, ok = 'تأكيد', danger = false) => new Promise(res => {
     ui.sheet(`<p style="font-size:17px;line-height:1.8;margin:6px 0 16px">${msg}</p><div class="row"><button class="btn ${danger ? 'bad' : ''} grow" id="cOk">${ok}</button><button class="btn sec grow" id="cNo">إلغاء</button></div>`, { mid: true, sticky: true });
     $('#cOk').onclick = () => { ui.close(); res(true); }; $('#cNo').onclick = () => { ui.close(); res(false); };
@@ -147,12 +147,11 @@
   const human = ms => { const m = Math.max(0, Math.round(ms / 60000)); const h = Math.floor(m / 60), r = m % 60; return h ? `${N(h)} ساعة${r ? ' و' + N(r) + ' دقيقة' : ''}` : `${N(r)} دقيقة`; };
 
   function weeklyWinner(docs) {
-    const now = new Date(), ws = SL.weekStart(now);
-    const prev = SL.aggregate(docs, SL.dkey(SL.addDays(ws, -7)), SL.dkey(SL.addDays(ws, -1)));
-    const sort = a => a.sort((x, y) => y.cnt - x.cnt || y.pts - x.pts);
-    if (prev.length) return { w: sort(prev)[0], label: 'تهنئة الأسبوع الماضي', of: 35 };
-    const cur = SL.aggregate(docs, SL.dkey(ws), SL.dkey(now));
-    if (cur.length) return { w: sort(cur)[0], label: 'متصدّر هذا الأسبوع حتى الآن', of: 35 };
+    const now = new Date(), ws = SL.weekStart(now), A = allActs(), W = allWird();
+    const prev = SL.aggregateAll(docs, A, W, SL.dkey(SL.addDays(ws, -7)), SL.dkey(SL.addDays(ws, -1)));
+    if (prev.length) return { w: prev[0], label: 'تهنئة الأسبوع الماضي' };
+    const cur = SL.aggregateAll(docs, A, W, SL.dkey(ws), SL.dkey(now));
+    if (cur.length) return { w: cur[0], label: 'متصدّر هذا الأسبوع حتى الآن' };
     return null;
   }
   function heroCards(docs, compact) {
@@ -162,7 +161,7 @@
     });
     if (S.showWeekly !== false) {
       const w = S.weeklyOverride && S.weeklyOverride.name ? { w: { name: S.weeklyOverride.name, cnt: null }, label: 'تهنئة الأسبوع', msg: S.weeklyOverride.msg } : weeklyWinner(docs);
-      if (w) h += `<div class="card celebrate${compact ? ' cmp' : ''}"><div class="tt">${E(w.label)}</div><div class="who">${E(w.w.name)}</div><div>${w.msg ? E(w.msg) : (w.w.cnt != null ? `التزم بـ ${N(w.w.cnt)} صلاة — بارك الله فيه وزاده حرصاً 🤍` : '')}</div></div>`;
+      if (w) h += `<div class="card celebrate${compact ? ' cmp' : ''}"><div class="tt">${E(w.label)}</div><div class="who">${E(w.w.name)}</div><div>${w.msg ? E(w.msg) : (w.w.cnt != null ? `حصد ${N(w.w.pts)} نقطة بين الصلاة والذكر والورد — بارك الله فيه وزاده حرصاً 🤍` : '')}</div></div>`;
     }
     if (S.showFajrHero !== false) {
       let hero = SL.fajrHero(docs, today), lab = 'بطل فجر اليوم';
@@ -195,6 +194,7 @@
         <div class="sub">أتممت اليوم <b>${N(doneN)}</b> من ٥ صلوات</div></div>
       ${installCard()}${heroCards(allDays(), true)}
       <div class="plist">${states.map(prayerRow).join('')}</div>
+      ${dhikrBoard()}
       <div class="card"><div class="row"><h3 class="grow">📖 ورد اليوم</h3>${wdone ? '<span class="badge ok">✓ أتممته</span>' : wird ? '<span class="badge acc">جديد</span>' : ''}</div>
         ${wird ? `<div class="muted small" style="margin-bottom:8px">${E(wird.title || '')}</div><button class="btn block ${wdone ? 'sec' : ''}" data-act="tab" data-t="wird">${wdone ? 'عرض الورد' : 'اقرأ الورد وسجّل إتمامه'}</button>` : '<div class="empty" style="padding:6px">لم تنشر الإدارة ورد اليوم بعد.</div>'}</div>
       ${(SL.cache.ann || []).filter(a => a.kind !== 'honor' && a.show !== false).slice(0, 4).map(a => `<div class="card"><div class="row"><h3 class="grow">📢 ${E(a.title || 'إعلان')}</h3><span class="small muted">${SL.fmtShort(SL.dkey(new Date(a.ts)))}</span></div><div style="line-height:1.9;white-space:pre-wrap">${E(a.text)}</div></div>`).join('')}
@@ -226,12 +226,83 @@
   };
   SL.act.dua = el => openDua(el.dataset.p);
 
+  /* ---------- سجل الأنشطة: التسبيح، الأذكار، الأدعية ---------- */
+  SL._acts = {};
+  const actsLocal = () => SL.demo ? SL._acts : SL.load('acts', {});
+  const saveActs = o => { if (SL.demo) { SL._acts = o; return; } const ks = Object.keys(o).sort().slice(-10), r = {}; ks.forEach(k => r[k] = o[k]); SL.save('acts', r); };
+  SL.actGet = () => actsLocal()[SL.dkey()] || {};
+  let pushT;
+  const pushActs = () => {
+    clearTimeout(pushT); const me = SL.me; if (SL.demo || !me || !me.sid || isStaff()) return;
+    const k = SL.dkey(), z = actsLocal()[k] || {}; if (!Object.keys(z).length) return;
+    SL.queueReplace('acts', `${me.sid}_${k}`, { sid: me.sid, name: me.name, date: k, z, upd: Date.now() });
+  };
+  SL.pushActs = pushActs;
+  SL.actSet = (key, entry) => { const o = actsLocal(), k = SL.dkey(); (o[k] = o[k] || {})[key] = entry; saveActs(o); clearTimeout(pushT); pushT = setTimeout(pushActs, 1500); };
+  SL.markDua = text => {
+    const sig = String(text).slice(0, 48), e = SL.actGet().u || { n: 0, l: [], ts: 0, g: 0 };
+    if (e.l.includes(sig)) return false; e.l = e.l.concat(sig).slice(-40); e.n = (e.n || 0) + 1; e.ts = Date.now(); SL.actSet('u', e); return true;
+  };
+  const recordSet = c => {
+    const set = window.ADHKAR_DATA[SL.adTab], items = set.items, comp = items.filter((x, j) => (c[j] || 0) >= x.n).length, old = SL.actGet()['a_' + SL.adTab] || {};
+    SL.actSet('a_' + SL.adTab, { n: comp, g: items.length, ts: Date.now(), done: comp === items.length ? (old.done || Date.now()) : 0, title: set.name });
+  };
+  const allActs = () => {
+    const d = Object.assign({}, SL.cache.actsAll), me = SL.me;
+    if (me && me.sid && !SL.demo && !isStaff()) { const mine = SL.load('acts', {}); for (const k in mine) { const id = `${me.sid}_${k}`; d[id] = { sid: me.sid, name: me.name, date: k, z: Object.assign({}, (d[id] || {}).z, mine[k]) }; } }
+    return d;
+  };
+  const allWird = () => {
+    const d = Object.assign({}, SL.cache.wirdAll), me = SL.me;
+    if (me && me.sid && !SL.demo && !isStaff()) { const wd = SL.load('wirdDone', {}); for (const k in wd) d[`${me.sid}_${k}`] = { sid: me.sid, name: me.name, date: k, ts: wd[k] }; }
+    return d;
+  };
+
+  const DHIKR_DEFAULT = [
+    { id: 'd1', title: 'سبحان الله وبحمده', g: 100, icon: '📿' },
+    { id: 'd2', title: 'أستغفر الله العظيم وأتوب إليه', g: 100, icon: '🤲' },
+    { id: 'd3', title: 'اللهم صلِّ وسلِّم على نبينا محمد ﷺ', g: 100, icon: '💚' },
+    { id: 'd4', title: 'لا إله إلا الله وحده لا شريك له', g: 100, icon: '✨' },
+    { id: 'd5', title: 'لا حول ولا قوة إلا بالله', g: 100, icon: '🌿' }
+  ];
+  SL.dhikrTasks = () => {
+    const staff = (SL.cache.dhikr || []).filter(x => x.kind === 'dhikr' && x.show !== false && x.title).map(x => ({ id: x.id, title: x.title, text: x.text || '', g: Math.max(1, +x.target || 33), icon: '⭐', staff: true }));
+    return (cs().showDefaultDhikr === false ? [] : DHIKR_DEFAULT).concat(staff);
+  };
+  const dhikrRow = t => {
+    const e = SL.actGet()['t_' + t.id] || {}, n = e.n || 0, done = !!e.done, p = Math.min(100, Math.round(n / t.g * 100));
+    return `<div class="prow ${done ? 'done' : n ? 'prog' : ''}" data-act="dhikrOpen" data-id="${E(t.id)}" style="cursor:pointer"><div class="ic">${t.icon}</div><div class="grow"><div class="nm" style="font-size:15.5px;line-height:1.5">${E(t.title)}</div><div class="tm num">${N(Math.min(n, t.g))}/${N(t.g)}${t.staff ? ' · من الإدارة' : ''}</div><div class="bar"><i style="width:${p}%"></i></div></div><div class="go">${done ? `<span class="badge ok">✓ تم</span><div class="tm num">${SL.fmtTime(e.done)}</div>` : `<span class="badge acc">${n ? 'أكمل' : 'ابدأ'}</span>`}</div></div>`;
+  };
+  const dhikrBoard = (title = '📿 التسبيح والذكر') => {
+    const ts = SL.dhikrTasks(); if (!ts.length) return '';
+    const z = SL.actGet(), dn = ts.filter(t => (z['t_' + t.id] || {}).done).length;
+    return `<div class="card" style="padding:14px"><div class="row" style="margin-bottom:10px"><h3 class="grow" style="margin:0">${title}</h3><span class="badge ${dn === ts.length ? 'ok' : ''}">${N(dn)}/${N(ts.length)}</span></div><div class="plist">${ts.map(dhikrRow).join('')}</div></div>`;
+  };
+  SL.act.dhikrOpen = el => {
+    const t = SL.dhikrTasks().find(x => x.id === el.dataset.id); if (!t) return; const key = 't_' + t.id; SL.sound.unlock();
+    const cur = () => SL.actGet()[key] || { n: 0, g: t.g, ts: 0, done: 0, title: t.title };
+    const paint = () => { const e = cur(); $('#tBtn').style.setProperty('--p', Math.min(100, e.n / t.g * 100) + '%'); $('#tN').textContent = N(e.n); $('#tSub').innerHTML = e.done ? `<span class="badge ok">✓ أتممت ${N(t.g)} — تقبّل الله</span>` : `المتبقي ${N(Math.max(0, t.g - e.n))}`; };
+    ui.sheet(`<div class="center"><div style="font-size:30px">${t.icon}</div><h2 style="margin:4px 0 2px;font-size:19px;line-height:1.6">${E(t.title)}</h2>${t.text ? `<div class="duaitem" style="margin:8px 0;text-align:center">${E(t.text)}</div>` : ''}
+      <button class="tbtn" id="tBtn" aria-label="عدّ"><b id="tN">٠</b><small>/ ${N(t.g)}</small></button><div class="muted small" id="tSub" style="min-height:26px"></div>
+      <div class="row" style="margin-top:12px"><button class="btn sec grow" id="tReset">تصفير</button><button class="btn grow" id="tClose">تم</button></div></div>`);
+    SL._onClose = () => render(true); paint();
+    $('#tBtn').onclick = () => {
+      const e = cur(); e.n++; e.g = t.g; e.title = t.title; e.ts = Date.now();
+      if (!e.done && e.n >= t.g) { e.done = e.ts; SL.actSet(key, e); paint(); SL.sound.play('wird'); ui.sparkle($('#tBtn')); if (navigator.vibrate) navigator.vibrate([60, 40, 60]); }
+      else { SL.actSet(key, e); paint(); SL.sound.play('tick'); if (navigator.vibrate) navigator.vibrate(12); }
+    };
+    $('#tReset').onclick = () => { SL.actSet(key, { n: 0, g: t.g, ts: Date.now(), done: 0, title: t.title }); paint(); };
+    $('#tClose').onclick = () => { ui.close(); pushActs(); };
+  };
+
   /* ---------- الأدعية ---------- */
   const hash = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+  const staffDuas = () => (SL.cache.dhikr || []).filter(x => x.kind === 'dua' && x.show !== false && x.text).map(x => x.text);
+  const allCats = () => { const c = window.DUAS_DATA.slice(), s = staffDuas(); if (s.length) c.push({ id: 'staff', name: 'أدعية من الإدارة', icon: '⭐', items: s }); return c; };
   function duaPool(pid) {
-    const cats = SL.DUAS_DATA || window.DUAS_DATA;
-    if (pid === 'fajr') { const f = cats.find(c => c.id === 'fajr'); return f.items.map(t => ({ t, cat: 'دعاء الفجر — للأحلام والرزق والتوفيق' })); }
-    return cats.filter(c => c.id !== 'fajr').flatMap(c => c.items.map(t => ({ t, cat: c.name })));
+    const cats = window.DUAS_DATA, extra = staffDuas().map(t => ({ t, cat: 'دعاء من الإدارة' }));
+    if (pid === 'fajr') { const f = cats.find(c => c.id === 'fajr'); return f.items.map(t => ({ t, cat: 'دعاء الفجر — للأحلام والرزق والتوفيق' })).concat(extra); }
+    return cats.filter(c => c.id !== 'fajr').flatMap(c => c.items.map(t => ({ t, cat: c.name }))).concat(extra);
   }
   function seeded(arr, seed) { const a = arr.slice(); let s = seed >>> 0 || 1; const rnd = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   function openDua(pid) {
@@ -240,7 +311,7 @@
     const keep = () => { if (!SL.demo) { ptr[key] = i % pool.length; SL.save('duaIdx', ptr); } }; keep();
     const first = me.name.split(' ')[0];
     const draw = () => {
-      const d = pool[i % pool.length];
+      const d = pool[i % pool.length]; SL.markDua(d.t);
       ui.sheet(`<div class="dua"><div class="ok">تقبّل الله منك صلاة ${st.name} يا ${E(first)} 🤍</div><div class="cat">${E(d.cat)}</div><div class="tx">${E(d.t)}</div></div>
         <div class="row" style="margin-top:14px"><button class="btn grow" id="dNext">دعاء آخر 🔄</button><button class="btn sec" id="dCopy">نسخ</button></div>
         <div class="row" style="margin-top:10px"><button class="btn sec grow" id="dLib">مكتبة الأدعية</button><button class="btn sec grow" id="dClose">إغلاق</button></div>`);
@@ -251,20 +322,21 @@
   }
   SL.duaCat = 'all'; SL.duaQ = '';
   const duaList = () => {
-    const cats = window.DUAS_DATA; let items = [];
+    const cats = allCats(); let items = [];
     cats.forEach(c => { if (SL.duaCat === 'all' || SL.duaCat === c.id) c.items.forEach(t => items.push({ t, c: c.name })); });
     const q = SL.duaQ.trim(); if (q) items = items.filter(x => x.t.includes(q));
     if (!items.length) return '<div class="empty">لا نتائج</div>';
-    return items.slice(0, 80).map((x, i) => `<div class="duaitem">${E(x.t)}<div class="row" style="margin-top:6px;font-family:Tajawal"><span class="small muted grow">${E(x.c)}</span><button class="btn sm sec" data-act="copyDua" data-i="${i}">نسخ</button></div></div>`).join('') + (items.length > 80 ? `<div class="empty">يظهر أول ٨٠ دعاء — استخدم البحث أو الأقسام لتصفية أدق (${N(items.length)} دعاء)</div>` : '');
+    return items.slice(0, 80).map((x, i) => `<div class="duaitem">${E(x.t)}<div class="row" style="margin-top:6px;font-family:Tajawal"><span class="small muted grow">${E(x.c)}</span><button class="btn sm" data-act="duaRead" data-i="${i}">قرأته ✓</button><button class="btn sm sec" data-act="copyDua" data-i="${i}">نسخ</button></div></div>`).join('') + (items.length > 80 ? `<div class="empty">يظهر أول ٨٠ دعاء — استخدم البحث أو الأقسام لتصفية أدق (${N(items.length)} دعاء)</div>` : '');
   };
   SL.pages.duas = () => {
-    const total = window.DUAS_DATA.reduce((a, c) => a + c.items.length, 0);
+    const total = allCats().reduce((a, c) => a + c.items.length, 0);
     return `<div class="card"><h2>🤲 مكتبة الأدعية</h2><div class="muted small" style="margin-bottom:10px">${N(total)} دعاء بدون إنترنت</div>
       <input type="text" id="duaQ" placeholder="ابحث في الأدعية…" value="${E(SL.duaQ)}">
-      <div class="chips" style="margin-top:10px"><button data-act="duaCat" data-c="all" class="${SL.duaCat === 'all' ? 'on' : ''}">الكل</button>${window.DUAS_DATA.map(c => `<button data-act="duaCat" data-c="${c.id}" class="${SL.duaCat === c.id ? 'on' : ''}">${c.icon} ${c.name.split('—')[0].trim()}</button>`).join('')}</div></div>
+      <div class="chips" style="margin-top:10px"><button data-act="duaCat" data-c="all" class="${SL.duaCat === 'all' ? 'on' : ''}">الكل</button>${allCats().map(c => `<button data-act="duaCat" data-c="${c.id}" class="${SL.duaCat === c.id ? 'on' : ''}">${c.icon} ${c.name.split('—')[0].trim()}</button>`).join('')}</div></div>
       <div class="col" id="duaList">${duaList()}</div>`;
   };
   SL.act.duaCat = el => { SL.duaCat = el.dataset.c; render(); };
+  SL.act.duaRead = el => { const it = $$('#duaList .duaitem')[+el.dataset.i]; if (!it) return; const ok = SL.markDua(it.firstChild.textContent); el.textContent = '✓ قُرئ'; el.disabled = true; SL.sound.play('tick'); ui.toast(ok ? 'سُجّل في نشاطك اليوم ✓' : 'سبق أن سجّلته اليوم'); };
   SL.act.copyDua = el => { const items = $$('#duaList .duaitem'); const it = items[+el.dataset.i]; if (it) ui.copy(it.firstChild.textContent); };
 
   /* ---------- الأذكار ---------- */
@@ -272,7 +344,7 @@
   const adGet = () => { const a = SL.load('adhkar', {}); const k = SL.dkey(); if (!a[k]) { for (const x in a) if (x !== k) delete a[x]; a[k] = {}; } return { a, k }; };
   SL.pages.adhkar = () => {
     const D = window.ADHKAR_DATA, { a, k } = adGet(), cur = D[SL.adTab], c = (a[k][SL.adTab] || {});
-    return `<div class="card"><h2>📿 الأذكار</h2><div class="tabs">${Object.keys(D).map(t => `<button data-act="adTab" data-t="${t}" class="${SL.adTab === t ? 'on' : ''}">${D[t].icon} ${D[t].name}</button>`).join('')}</div>
+    return dhikrBoard('📿 تسبيح اليوم') + `<div class="card"><h2>📿 الأذكار</h2><div class="tabs">${Object.keys(D).map(t => `<button data-act="adTab" data-t="${t}" class="${SL.adTab === t ? 'on' : ''}">${D[t].icon} ${D[t].name}</button>`).join('')}</div>
       <div class="hint" style="margin-top:8px">اضغط على الذكر للعدّ. يُحفظ تقدّمك اليوم على هاتفك.</div></div>
       <div class="col">${cur.items.map((it, i) => { const n = c[i] || 0, p = Math.min(100, n / it.n * 100); return `<div class="dh ${n >= it.n ? 'done' : ''}" data-act="dh" data-i="${i}"><div class="tx">${E(it.t)}</div><div class="ct" style="--p:${p}%"><b class="num">${N(Math.min(n, it.n))}/${N(it.n)}</b></div></div>`; }).join('')}</div>
       <button class="btn sec" data-act="adReset">إعادة العدّ لهذا القسم</button>`;
@@ -281,11 +353,11 @@
   SL.act.dh = el => {
     const i = +el.dataset.i, it = window.ADHKAR_DATA[SL.adTab].items[i], { a, k } = adGet();
     const c = a[k][SL.adTab] || (a[k][SL.adTab] = {}); if ((c[i] || 0) >= it.n) return;
-    c[i] = (c[i] || 0) + 1; SL.save('adhkar', a); SL.sound.play('tick');
+    c[i] = (c[i] || 0) + 1; SL.save('adhkar', a); recordSet(c); SL.sound.play('tick');
     const n = c[i], ct = $('.ct', el); ct.style.setProperty('--p', Math.min(100, n / it.n * 100) + '%'); $('b', ct).textContent = N(n + '/' + it.n);
     if (n >= it.n) { el.classList.add('done'); if (navigator.vibrate) navigator.vibrate(40); const all = window.ADHKAR_DATA[SL.adTab].items.every((x, j) => (c[j] || 0) >= x.n); if (all) { SL.sound.play('wird'); ui.sparkle(el); ui.toast('ما شاء الله، أتممت ' + window.ADHKAR_DATA[SL.adTab].name + ' 🤍'); } }
   };
-  SL.act.adReset = () => { const { a, k } = adGet(); a[k][SL.adTab] = {}; SL.save('adhkar', a); render(); };
+  SL.act.adReset = () => { const { a, k } = adGet(); a[k][SL.adTab] = {}; SL.save('adhkar', a); recordSet({}); render(); };
 
   /* ---------- الورد ---------- */
   SL.pages.wird = () => {
@@ -312,14 +384,14 @@
   SL.honorPrev = false;
   SL.pages.honor = () => {
     const S = cs(), docs = allDays(), now = new Date(), cur = SL.cycleOf(now), idx = SL.honorPrev ? cur - 1 : cur, rng = SL.cycleRange(idx);
-    const board = SL.aggregate(docs, rng.from, rng.to).slice(0, 5), me = meEff(), left = SL.daysBetween(now, SL.fromKey(SL.cycleRange(cur).to)) + 1;
+    const board = SL.aggregateAll(docs, allActs(), allWird(), rng.from, rng.to).slice(0, 5), me = meEff(), left = SL.daysBetween(now, SL.fromKey(SL.cycleRange(cur).to)) + 1;
     const medals = ['🥇', '🥈', '🥉', '4', '5'];
     let h = heroCards(docs);
     if (S.showBoard === false) return h + '<div class="card empty">لوحة الشرف مخفية مؤقتاً من الإدارة.</div>';
     h += `<div class="card"><div class="row"><h2 class="grow">🏆 لوحة الشرف</h2><span class="chip">${SL.honorPrev ? 'الدورة السابقة' : 'تتجدد بعد ' + N(left) + ' يوم'}</span></div>
       <div class="seg" style="margin:6px 0 12px"><button data-act="honorSw" data-p="0" class="${!SL.honorPrev ? 'on' : ''}">الدورة الحالية</button><button data-act="honorSw" data-p="1" class="${SL.honorPrev ? 'on' : ''}">الدورة السابقة</button></div>
-      <div class="hint" style="margin-bottom:10px">من ${SL.fmtShort(rng.from)} إلى ${SL.fmtShort(rng.to)} · النقاط = الالتزام بالصلاة + سرعة التسجيل بعد الأذان + المسجد</div>
-      ${board.length ? `<div class="podium">${board.map((b, i) => `<div class="hrow ${b.sid === me.sid ? 'me' : ''}"><div class="rk">${medals[i]}</div><div><div class="nm">${E(b.name)}${b.sid === me.sid ? ' (أنت)' : ''}</div><div class="small muted">${N(b.cnt)} صلاة · ${N(b.mosque)} في المسجد</div></div><div class="pt num">${N(b.pts)}<div class="small muted" style="font-weight:400">نقطة</div></div></div>`).join('')}</div>` : '<div class="empty">لا توجد بيانات بعد في هذه الدورة. ابدأ بتسجيل صلواتك لتكون أول المتصدرين 🌟</div>'}</div>`;
+      <div class="hint" style="margin-bottom:10px">من ${SL.fmtShort(rng.from)} إلى ${SL.fmtShort(rng.to)} · النقاط = الصلاة (التزام + سرعة + مسجد) + التسبيح + الأذكار + الأدعية + الورد</div>
+      ${board.length ? `<div class="podium">${board.map((b, i) => `<div class="hrow ${b.sid === me.sid ? 'me' : ''}"><div class="rk">${medals[i]}</div><div><div class="nm">${E(b.name)}${b.sid === me.sid ? ' (أنت)' : ''}</div><div class="small muted">${N(b.cnt)} صلاة · ${N(b.dh)} تسبيح · ${N(b.ad)} أذكار · ${N(b.du)} دعاء · ${N(b.wd)} ورد</div></div><div class="pt num">${N(b.pts)}<div class="small muted" style="font-weight:400">نقطة</div></div></div>`).join('')}</div>` : '<div class="empty">لا توجد بيانات بعد في هذه الدورة. ابدأ بتسجيل صلواتك لتكون أول المتصدرين 🌟</div>'}</div>`;
     return h;
   };
   SL.act.honorSw = el => { SL.honorPrev = el.dataset.p === '1'; render(); };
@@ -357,8 +429,7 @@
         <div class="hint">آخر مزامنة: ${SL.cloud.lastSync ? SL.fmtTime(SL.cloud.lastSync) + ' · ' + SL.fmtShort(SL.dkey(new Date(SL.cloud.lastSync))) : 'لم تتم بعد'}${SL.cloud.enabled ? '' : ' (السحابة غير مفعّلة — راجع ملف config.js)'}</div>
         <button class="btn sec" data-act="syncNow">🔄 مزامنة الآن</button>
         ${SL.me.role === 'super' && !SL.demo ? '<button class="btn sec" data-act="preview">👁️ معاينة كطالب</button>' : ''}
-        ${SL.demo ? '' : '<button class="btn bad" data-act="logout">تسجيل الخروج</button>'}</div></div>
-      <div class="card center"><a class="sigbig" href="${CFG.devUrl}" target="_blank" rel="noopener">MARWAN DEV</a><div class="small muted" style="line-height:1.9;margin-top:6px">مساهمة لدعم الشباب وصدقة جارية 🤍</div></div>`;
+        ${SL.demo ? '' : '<button class="btn bad" data-act="logout">تسجيل الخروج</button>'}</div></div>`;
   };
   SL.act.setTheme = el => { SL.settings.theme = el.dataset.t; SL.saveSettings(); SL.applyTheme(); render(); };
   SL.act.gps = () => {
@@ -370,7 +441,7 @@
   SL.act.logout = async () => {
     const pend = SL.load('outbox', []).length;
     if (!await ui.confirm(`هل تريد تسجيل الخروج؟${pend ? `<br><b style="color:var(--bad)">يوجد ${N(pend)} عنصر لم تتم مزامنته وسيضيع!</b>` : ''}`, 'خروج', true)) return;
-    ['me', 'days', 'wirdDone', 'outbox', 'cache', 'sent', 'msgSeen', 'adhkar', 'lastSeen'].forEach(SL.del); sessionStorage.clear(); location.reload();
+    ['me', 'days', 'wirdDone', 'outbox', 'cache', 'sent', 'msgSeen', 'adhkar', 'lastSeen', 'acts', 'duaIdx'].forEach(SL.del); sessionStorage.clear(); location.reload();
   };
   SL.act.preview = () => { SL.demo = true; SL._dd = {}; SL._wd = {}; SL.tab = 'home'; SL.stopListening(); shell(); window.scrollTo(0, 0); };
   SL.act.exitPreview = () => { SL.demo = false; SL.tab = 'admin'; shell(); SL.startListening(); };
@@ -406,8 +477,7 @@
         <button class="btn block" id="aGo" data-act="${login && !st ? 'doLogin' : 'doRegister'}">${login ? 'دخول' : 'إنشاء الحساب'}</button>
         <div class="hint center">${SL.cloud.enabled ? '' : '⚠️ السحابة غير مفعّلة — التطبيق يعمل محلياً حتى تضيف إعدادات Firebase.'}</div>
       </div>
-      ${SL.isStandalone() ? '' : '<button class="btn sec" data-act="install">📲 ثبّت التطبيق على هاتفك</button>'}
-      <div class="center" style="padding:6px 0 0"><a class="sigbig" style="font-size:15px" href="${CFG.devUrl}" target="_blank" rel="noopener">MARWAN DEV</a></div></div>`;
+      ${SL.isStandalone() ? '' : '<button class="btn sec" data-act="install">📲 ثبّت التطبيق على هاتفك</button>'}</div>`;
   }
   SL.act.authMode = el => { SL.authMode = el.dataset.m; authView(); };
   document.addEventListener('change', e => { if (e.target.id === 'aShow') { ['#aPin', '#aPin2'].forEach(s => { const i = $(s); if (i) i.type = e.target.checked ? 'text' : 'password'; }); return; }

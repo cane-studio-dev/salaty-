@@ -6,7 +6,7 @@
   let db = null, auth = null, authReady = null, unsubs = [], listening = false, flushing = false;
 
   SL.cloud = { enabled: cloudOn, online: navigator.onLine, pending: 0, lastSync: SL.load('lastSync', 0), error: null };
-  SL.cache = Object.assign({ settings: {}, ann: [], wird: [], msgs: [], daysAll: {}, users: [], wirdDone: [], staff: [], staffMsgs: [] }, SL.load('cache', {}));
+  SL.cache = Object.assign({ settings: {}, ann: [], wird: [], msgs: [], daysAll: {}, users: [], wirdDone: [], staff: [], staffMsgs: [], actsAll: {}, wirdAll: {}, dhikr: [] }, SL.load('cache', {}));
   const saveCache = (() => { let t; return () => { clearTimeout(t); t = setTimeout(() => SL.save('cache', SL.cache), 400); }; })();
   const notify = (() => { let t; return () => { clearTimeout(t); t = setTimeout(() => SL.emit('data'), 120); }; })();
   const status = () => { SL.cloud.pending = outbox().length; SL.emit('status'); };
@@ -17,10 +17,17 @@
   SL.queue = (col, doc, data, opts) => {
     if (SL.demo) return; // وضع المعاينة: لا شيء يُحفظ
     const o = outbox().filter(x => !(x.col === col && x.doc === doc && x.merge === false && !(opts && opts.keep)));
-    o.push({ col, doc, data, merge: !(opts && opts.merge === false), t: Date.now() });
+    o.push({ col, doc, data, merge: !(opts && opts.merge === false), t: Date.now(), k: SL.uid() });
     setOutbox(o); status(); SL.flush();
   };
-  SL.queueDelete = (col, doc) => { if (SL.demo) return; const o = outbox(); o.push({ col, doc, del: true, t: Date.now() }); setOutbox(o); status(); SL.flush(); };
+  /** يستبدل أي عملية معلّقة لنفس المستند بلقطة جديدة كاملة (للأنشطة اليومية) */
+  SL.queueReplace = (col, doc, data) => {
+    if (SL.demo) return;
+    const o = outbox().filter(x => !(x.col === col && x.doc === doc && !x.del));
+    o.push({ col, doc, data, merge: true, t: Date.now(), k: SL.uid() }); setOutbox(o); status(); SL.flush();
+  };
+  const same = (a, b) => a.k ? a.k === b.k : (a.t === b.t && a.col === b.col && a.doc === b.doc);
+  SL.queueDelete = (col, doc) => { if (SL.demo) return; const o = outbox(); o.push({ col, doc, del: true, t: Date.now(), k: SL.uid() }); setOutbox(o); status(); SL.flush(); };
 
   const withTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r({ code: 'timeout' }), ms))]);
   SL.ensureAuth = () => {
@@ -41,11 +48,11 @@
         try {
           const ref = db.collection(op.col).doc(op.doc);
           await withTimeout(op.del ? ref.delete() : ref.set(op.data, { merge: op.merge }), 20000);
-          o = outbox().slice(1); setOutbox(o);
+          o = outbox().filter(x => !same(x, op)); setOutbox(o);
           SL.cloud.lastSync = Date.now(); SL.save('lastSync', SL.cloud.lastSync); SL.cloud.error = null;
         } catch (e) {
           if (e && (e.code === 'permission-denied' || e.code === 'invalid-argument')) {
-            o = outbox().slice(1); setOutbox(o); SL.emit('opfailed', { op, e });
+            o = outbox().filter(x => !same(x, op)); setOutbox(o); SL.emit('opfailed', { op, e });
           } else { SL.cloud.error = e && e.code || 'network'; break; }
         }
         status();
@@ -76,9 +83,11 @@
     listen(db.collection('announcements').orderBy('ts', 'desc').limit(30), s => { SL.cache.ann = snapArr(s); });
     listen(db.collection('wird').orderBy('date', 'desc').limit(5), s => { SL.cache.wird = snapArr(s); });
     listen(db.collection('days').where('date', '>=', SL.rangeFrom()), s => { SL.cache.daysAll = snapMap(s); });
+    listen(db.collection('acts').where('date', '>=', SL.rangeFrom()), s => { SL.cache.actsAll = snapMap(s); });
+    listen(db.collection('wirdDone').where('date', '>=', SL.rangeFrom()), s => { SL.cache.wirdAll = snapMap(s); SL.cache.wirdDone = snapArr(s).filter(d => d.date === SL.dkey()); });
+    listen(db.collection('dhikr').orderBy('ts', 'desc').limit(100), s => { SL.cache.dhikr = snapArr(s); });
     if (isStaff) {
       listen(db.collection('users'), s => { SL.cache.users = snapArr(s); });
-      listen(db.collection('wirdDone').where('date', '==', today), s => { SL.cache.wirdDone = snapArr(s); });
       listen(db.collection('messages').where('to', '==', 'staff'), s => { SL.cache.staffMsgs = snapArr(s); });
       if (me.role === 'super') listen(db.collection('staff'), s => { SL.cache.staff = snapArr(s); });
     } else if (me.sid) {
@@ -101,6 +110,10 @@
       SL.save('days', mine);
       const w = await withTimeout(db.collection('wirdDone').where('sid', '==', SL.me.sid).get(), 20000);
       const wd = SL.load('wirdDone', {}); w.forEach(d => { const r = d.data(); if (!wd[r.date]) wd[r.date] = r.ts; }); SL.save('wirdDone', wd);
+      const ac = await withTimeout(db.collection('acts').where('sid', '==', SL.me.sid).get(), 20000);
+      const loc = SL.load('acts', {});
+      ac.forEach(d => { const r = d.data(), l = loc[r.date] || (loc[r.date] = {}); for (const k in (r.z || {})) { const x = r.z[k], y = l[k]; if (!y || (x.n || 0) > (y.n || 0)) l[k] = x; } });
+      SL.save('acts', loc);
       SL.emit('data');
     } catch (e) { console.warn('pullMine', e); }
   };

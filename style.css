@@ -263,3 +263,17 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .celebrate.cmp{padding:12px 14px}.celebrate.cmp .who{font-size:21px;margin:2px 0;line-height:1.5}.celebrate.cmp::before,.celebrate.cmp::after{font-size:19px;top:6px}
 .hero-fajr.cmp{padding:12px 14px}.hero-fajr.cmp .e{font-size:30px}
 .celebrate.cmp{display:flex;flex-direction:column;justify-content:center}
+
+/* التسبيح والذكر */
+.bar{height:6px;border-radius:3px;background:var(--border);margin-top:7px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+.prow.prog{border-color:color-mix(in srgb,var(--accent) 55%,var(--border))}
+.prow .grow{min-width:0}
+.tbtn{width:210px;height:210px;border-radius:50%;border:0;background:conic-gradient(var(--accent) var(--p,0%),var(--border) 0);position:relative;margin:16px auto 8px;display:grid;place-items:center;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:transform .08s}
+.tbtn::before{content:'';position:absolute;inset:11px;border-radius:50%;background:var(--card)}
+.tbtn:active{transform:scale(.96)}
+.tbtn b{position:relative;font-size:60px;color:var(--accent);line-height:1;font-feature-settings:'tnum'}
+.tbtn small{position:relative;display:block;color:var(--muted);font-size:14px;margin-top:-34px}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.acts .chip{font-size:12px;padding:4px 9px}
+.acts .chip.on{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,var(--border));background:color-mix(in srgb,var(--ok) 10%,var(--card2))}
