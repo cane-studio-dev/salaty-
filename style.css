@@ -277,3 +277,32 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .acts .chip{font-size:12px;padding:4px 9px}
 .acts .chip.on{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,var(--border));background:color-mix(in srgb,var(--ok) 10%,var(--card2))}
+
+/* ===== المصحف الموحّد ===== */
+@font-face{font-family:'Amiri Quran';font-weight:400;font-display:swap;src:url(amiri-quran-arabic-400-normal.woff2) format('woff2')}
+:root{--mfs:26px}
+#mushaf{position:fixed;inset:0;z-index:70;background:var(--bg);color:var(--text);display:flex;flex-direction:column;animation:up .25s ease}
+#mushaf .mtop{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:var(--card);border-bottom:1px solid var(--border)}
+#mushaf .mx{width:42px;height:42px;border-radius:14px;border:1px solid var(--border);background:var(--card2);color:var(--text);font:inherit;font-size:20px;cursor:pointer;flex:none}
+#mushaf .mwh{font-size:15px;line-height:1.5}
+#mushaf .mpr{height:5px;background:var(--border)}#mushaf .mpr i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));transition:width .3s}
+#mBody{flex:1;overflow:auto;padding:12px;-webkit-overflow-scrolling:touch}
+.mframe{max-width:620px;margin:0 auto;background:var(--card);border:3px double var(--gold);border-radius:14px;padding:10px;box-shadow:var(--shadow);position:relative}
+.mframe::before{content:'';position:absolute;inset:5px;border:1px solid var(--accent);border-radius:10px;pointer-events:none;opacity:.55}
+.mhead{display:flex;justify-content:space-between;padding:6px 14px;margin:4px 6px 8px;border-radius:8px;background:var(--card2);border:1px solid var(--border);font-family:'Amiri Quran','Amiri',serif;font-size:17px;color:var(--accent)}
+.mtext{font-family:'Amiri Quran','Amiri',serif;font-size:var(--mfs);line-height:2.35;text-align:justify;text-align-last:center;padding:6px 14px;direction:rtl;word-spacing:2px}
+.mtext .ay{cursor:pointer;border-radius:8px;transition:background .2s}
+.mtext .ay.in{background:color-mix(in srgb,var(--gold) 20%,transparent)}
+.mtext .ay.sel{background:color-mix(in srgb,var(--accent) 22%,transparent);outline:1px dashed var(--accent)}
+.mtext .no{font-style:normal;color:var(--gold);font-size:.8em;margin:0 3px;white-space:nowrap}
+.mtext .tag{display:inline-block;font:700 11px/1 Tajawal,sans-serif;padding:4px 8px;margin:0 3px;border-radius:99px;background:var(--accent);color:var(--on);vertical-align:middle}
+.mban{margin:12px 0 6px;text-align:center;font-family:'Amiri Quran','Amiri',serif;font-size:calc(var(--mfs) * .95);color:var(--accent);border:2px solid var(--gold);border-radius:10px;padding:2px 10px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--gold) 18%,transparent),transparent)}
+.mbsm{text-align:center;font-family:'Amiri Quran','Amiri',serif;font-size:var(--mfs);margin:4px 0 8px}
+.mnum{text-align:center;padding:6px 0 4px}.mnum span{display:inline-block;min-width:38px;padding:4px 10px;border:2px solid var(--gold);border-radius:99px;font:700 14px Tajawal,sans-serif;color:var(--accent)}
+#mushaf .mbar{display:flex;align-items:center;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--border)}
+#mushaf .mbar .btn{margin:0}
+#mushaf .mfz{position:absolute;left:10px;bottom:calc(92px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px}
+#mushaf .mfz .mx{width:38px;height:38px;font-size:15px;opacity:.85}
+.ixr{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:6px;border:1px solid var(--border);border-radius:12px;background:var(--card2);color:var(--text);font:inherit;cursor:pointer;text-align:right}
+.ixr b.num{min-width:28px;color:var(--accent)}
+.ixg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:52vh;overflow:auto}.ixg .ixr{margin:0;justify-content:center;gap:2px}

@@ -194,7 +194,7 @@
         <div class="sub">أتممت اليوم <b>${N(doneN)}</b> من ٥ صلوات</div></div>
       ${installCard()}${heroCards(allDays(), true)}
       <div class="plist">${states.map(prayerRow).join('')}</div>
-      ${dhikrBoard()}${sduaCards()}${quranCard()}
+      ${SL.mushafCard ? SL.mushafCard() : ''}${dhikrBoard()}${sduaCards()}${quranCard()}
       <div class="card"><div class="row"><h3 class="grow">📖 ورد اليوم</h3>${wdone ? '<span class="badge ok">✓ أتممته</span>' : wird ? '<span class="badge acc">جديد</span>' : ''}</div>
         ${wird ? `<div class="muted small" style="margin-bottom:8px">${E(wird.title || '')}</div><button class="btn block ${wdone ? 'sec' : ''}" data-act="tab" data-t="wird">${wdone ? 'عرض الورد' : 'اقرأ الورد وسجّل إتمامه'}</button>` : '<div class="empty" style="padding:6px">لم تنشر الإدارة ورد اليوم بعد.</div>'}</div>
       ${(SL.cache.ann || []).filter(a => a.kind !== 'honor' && a.show !== false).slice(0, 4).map(a => `<div class="card"><div class="row"><h3 class="grow">📢 ${E(a.title || 'إعلان')}</h3><span class="small muted">${SL.fmtShort(SL.dkey(new Date(a.ts)))}</span></div><div style="line-height:1.9;white-space:pre-wrap">${E(a.text)}</div></div>`).join('')}
@@ -388,18 +388,19 @@
     if (tw) {
       const done = wd[today];
       h += `<div class="muted small" style="margin-bottom:8px">${E(tw.title || '')} · ${SL.fmtShort(tw.date)}${tw.by ? ' · من ' + E(tw.by) : ''}</div><div class="duaitem" style="white-space:pre-wrap">${E(tw.text)}</div>
-        ${done ? `<div class="badge ok" style="margin-top:12px">✓ أتممت الورد ${SL.fmtTime(done)}</div>` : '<button class="btn block" style="margin-top:14px" data-act="wirdDone">أتممت الورد ✓</button>'}`;
+        ${done ? `<div class="badge ok" style="margin-top:12px">✓ أتممت الورد ${SL.fmtTime(done)}</div>` : tw.range ? '<button class="btn block" style="margin-top:14px" data-act="mOpenWird">ابدأ قراءة الورد اليومي 📖</button><div class="hint" style="margin-top:8px">يُسجَّل الإتمام تلقائياً من داخل المصحف عند الوصول لنهاية الورد.</div>' : '<button class="btn block" style="margin-top:14px" data-act="wirdDone">أتممت الورد ✓</button>'}`;
     } else h += '<div class="empty">لم تنشر الإدارة ورد اليوم بعد. تابعنا لاحقاً 🌿</div>';
-    h += '</div>';
+    h += '</div>' + (SL.mushafBrowse ? SL.mushafBrowse() : '');
     const older = list.filter(w => w.date !== today).slice(0, 4);
     if (older.length) h += `<div class="card"><h3>أوراد سابقة</h3><div class="col">${older.map(w => `<div class="msg"><div class="meta"><b>${E(w.title || 'ورد')}</b><span>${SL.fmtShort(w.date)} ${wd[w.date] ? '· ✓ أتممته' : ''}</span></div><div style="white-space:pre-wrap;font-family:Amiri,serif;font-size:18px;line-height:1.9">${E(w.text)}</div></div>`).join('')}</div></div>`;
     return h;
   };
-  SL.act.wirdDone = el => {
+  SL.doWirdDone = el => {
     const today = SL.dkey(), me = meEff(), now = Date.now(); SL.sound.unlock();
     if (SL.demo) SL._wd[today] = now; else { const wd = SL.load('wirdDone', {}); if (wd[today]) return; wd[today] = now; SL.save('wirdDone', wd); SL.queue('wirdDone', `${me.sid}_${today}`, { sid: me.sid, name: me.name, date: today, ts: now }); }
-    SL.sound.play('wird'); ui.sparkle(el); render();
+    SL.sound.play('wird'); if (el) ui.sparkle(el); render();
   };
+  SL.act.wirdDone = el => SL.doWirdDone(el);
 
   /* ---------- لوحة الشرف ---------- */
   SL.honorPrev = false;

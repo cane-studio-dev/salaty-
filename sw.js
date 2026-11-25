@@ -1,11 +1,11 @@
 /* صلاتي — Service Worker: يخزّن التطبيق كاملاً ليعمل بدون إنترنت */
-const VER = 'salaty-v1.3.0';
+const VER = 'salaty-v1.4.0';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './style.css',
-  './config.js', './duas.js', './core.js', './sync.js', './app.js', './admin.js', './boot.js',
+  './config.js', './duas.js', './core.js', './sync.js', './app.js', './admin.js', './mushaf.js', './quran.js', './boot.js',
   './firebase-app-compat.js', './firebase-auth-compat.js', './firebase-firestore-compat.js',
   './tajawal-arabic-400-normal.woff2', './tajawal-arabic-500-normal.woff2', './tajawal-arabic-700-normal.woff2',
-  './amiri-arabic-400-normal.woff2', './amiri-arabic-700-normal.woff2',
+  './amiri-quran-arabic-400-normal.woff2', './amiri-arabic-400-normal.woff2', './amiri-arabic-700-normal.woff2',
   './montserrat-latin-200-normal.woff2', './montserrat-latin-300-normal.woff2',
   './logo.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png',
   './shot-home.png', './shot-admin.png'
@@ -25,7 +25,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // طلبات Firebase تمر مباشرة
 
-  const isStatic = /\.(woff2|png|svg)$/.test(url.pathname) || /\/firebase-[a-z]+-compat\.js$/.test(url.pathname);
+  const isStatic = /\.(woff2|png|svg)$/.test(url.pathname) || /\/quran\.js$/.test(url.pathname) || /\/firebase-[a-z]+-compat\.js$/.test(url.pathname);
   if (isStatic) { // الأولوية للكاش (ملفات لا تتغير)
     e.respondWith(caches.match(req).then(r => r || fetch(req).then(res => { const cp = res.clone(); caches.open(VER).then(c => c.put(req, cp)); return res; })));
     return;
