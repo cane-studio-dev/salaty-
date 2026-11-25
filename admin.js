@@ -50,14 +50,14 @@
   };
   const pcell = (C, u, p) => {
     const r = pOf(C, u)[p.id], st = C.state(p.id);
-    if (r) return `<div class="pc ${r.where === 'mosque' ? 'm' : 'h'}"><small>${p.name}</small><i>${r.where === 'mosque' ? '🕌' : '🏠'}</i><em class="num">${SL.fmtTime(r.ts)}</em></div>`;
+    if (r) return `<div class="pc ${r.sus ? 's' : r.where === 'mosque' ? 'm' : 'h'}"><small>${p.name}</small><i>${r.sus ? '⚠️' : r.where === 'mosque' ? '🕌' : '🏠'}</i><em class="num">${SL.fmtTime(r.ts)}</em></div>`;
     if (st === 'closed') return `<div class="pc x"><small>${p.name}</small><i>✗</i><em>فاتت</em></div>`;
     if (st === 'open') return `<div class="pc o"><small>${p.name}</small><i>⏳</i><em>جارية</em></div>`;
     return `<div class="pc n"><small>${p.name}</small><i>–</i><em class="num">${SL.fmtTime(C.t[p.id])}</em></div>`;
   };
   const zOf = (C, u) => ((SL.cache.actsAll || {})[`${u.sid}_${C.dk}`] || {}).z || {};
   const zSum = z => { let dh = 0, ad = 0, du = 0, qr = 0, sd = 0, last = 0; for (const k in z) { const e = z[k] || {}; if (k[0] === 't' && e.done) dh++; if (k[0] === 'a' && e.done) ad++; if (k[0] === 'u') du += e.n || 0; if (k === 'q') qr += e.n || 0; if (k[0] === 'd' && e.done) sd++; if ((e.ts || 0) > last) last = e.ts; } return { dh, ad, du, qr, sd, last }; };
-  const actChips = (C, u) => { const s = zSum(zOf(C, u)), nt = SL.dhikrTasks().length; return `<div class="acts"><span class="chip ${s.dh ? 'on' : ''}">📿 ${N(s.dh)}/${N(nt)} تسبيح</span><span class="chip ${s.ad ? 'on' : ''}">🌅 ${N(s.ad)}/${N(3)} أذكار</span><span class="chip ${s.du ? 'on' : ''}">🤲 ${N(s.du)} دعاء</span><span class="chip ${s.qr ? 'on' : ''}">📖 ${N(s.qr)} صفحة</span></div>`; };
+  const actChips = (C, u) => { const s = zSum(zOf(C, u)), nt = SL.dhikrTasks().length, sus = Object.values(pOf(C, u)).filter(r => r && r.sus).length; return `<div class="acts">${sus ? `<span class="chip" style="background:var(--bad);color:#fff">⚠️ ${N(sus)} مسجد غير صادق</span>` : ''}<span class="chip ${s.dh ? 'on' : ''}">📿 ${N(s.dh)}/${N(nt)} تسبيح</span><span class="chip ${s.ad ? 'on' : ''}">🌅 ${N(s.ad)}/${N(3)} أذكار</span><span class="chip ${s.du ? 'on' : ''}">🤲 ${N(s.du)} دعاء</span><span class="chip ${s.qr ? 'on' : ''}">📖 ${N(s.qr)} صفحة</span></div>`; };
   const actDetail = (C, u) => {
     const z = zOf(C, u), tasks = SL.dhikrTasks(), sets = window.ADHKAR_DATA, ue = z.u;
     const line = (label, e, g, doneTs) => `<div class="setrow"><span>${label}</span>${e ? `<span><b class="num">${N(e.n || 0)}/${N(g)}</b> <span class="muted small num">${e.done ? '✓ ' + SL.fmtTime(e.done) : 'آخر نشاط ' + SL.fmtTime(e.ts)}</span></span>` : '<span class="muted">–</span>'}</div>`;
@@ -167,15 +167,20 @@
         <div class="seg"><button data-act="postKind" data-k="announce" class="${SL.postKind !== 'honor' ? 'on' : ''}">إعلان</button><button data-act="postKind" data-k="honor" class="${SL.postKind === 'honor' ? 'on' : ''}">تكريم / جائزة 🏆</button></div>
         <input type="text" id="pTitle" placeholder="${SL.postKind === 'honor' ? 'عنوان التكريم (مثال: تكريم خاص)' : 'عنوان الإعلان'}" maxlength="80">
         <textarea id="pText" placeholder="${SL.postKind === 'honor' ? 'اسم المكرَّم وكلمة التكريم…' : 'نص الإعلان…'}"></textarea>
+        <label class="btn sec" style="text-align:center;cursor:pointer">🖼️ إرفاق صورة (اختياري)<input type="file" id="pImg" accept="image/*" hidden></label><img id="pImgPrev" class="annimg" style="display:none" alt="">
         <button class="btn" data-act="postPub">نشر للجميع</button></div></div>
-      <div class="card"><h3>المنشورات</h3><div class="col">${ann.length ? ann.map(a => `<div class="msg"><div class="meta"><b>${a.kind === 'honor' ? '🏆' : '📢'} ${E(a.title || '')}</b><span>${SL.fmtShort(SL.dkey(new Date(a.ts)))}</span></div><div class="small" style="white-space:pre-wrap">${E(a.text)}</div>
+      <div class="card"><h3>المنشورات</h3><div class="col">${ann.length ? ann.map(a => `<div class="msg"><div class="meta"><b>${a.kind === 'honor' ? '🏆' : '📢'} ${E(a.title || '')}</b><span>${SL.fmtShort(SL.dkey(new Date(a.ts)))}</span></div><div class="small" style="white-space:pre-wrap">${E(a.text)}</div>${a.img ? `<img class="annimg" src="${a.img}" alt="">` : ''}
         <div class="row" style="margin-top:8px"><button class="btn sm sec" data-act="postToggle" data-i="${a.id}" data-v="${a.show === false ? 1 : 0}">${a.show === false ? 'إظهار' : 'إخفاء'}</button><button class="btn sm bad" data-act="postDel" data-i="${a.id}">حذف</button></div></div>`).join('') : '<div class="empty">لا توجد منشورات.</div>'}</div></div>`;
   }
   SL.postKind = 'announce';
   SL.act.postKind = el => { SL.postKind = el.dataset.k; SL.render(); };
+  let pImg = '';
+  const shrink = file => new Promise((res, rej) => { const fr = new FileReader(); fr.onerror = rej; fr.onload = () => { const im = new Image(); im.onerror = rej; im.onload = () => { const k = Math.min(1, 900 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', .72)); }; im.src = fr.result; }; fr.readAsDataURL(file); });
+  document.addEventListener('change', async e => { if (e.target.id !== 'pImg') return; const f = e.target.files[0]; if (!f) return; try { pImg = await shrink(f); const p = $('#pImgPrev'); p.src = pImg; p.style.display = 'block'; } catch (x) { pImg = ''; ui.toast('تعذّر قراءة الصورة'); } });
   SL.act.postPub = () => {
-    const title = v('#pTitle').trim(), text = v('#pText').trim(); if (!text) return ui.toast('اكتب النص');
-    const id = SL.uid(), a = { title, text, kind: SL.postKind, show: true, by: SL.me.name, ts: Date.now() };
+    const title = v('#pTitle').trim(), text = v('#pText').trim(); if (!text && !pImg) return ui.toast('اكتب النص أو أرفق صورة');
+    if (pImg.length > 700000) { pImg = ''; return ui.toast('الصورة كبيرة، اختر صورة أصغر'); }
+    const id = SL.uid(), a = { title, text, kind: SL.postKind, show: true, by: SL.me.name, ts: Date.now() }; if (pImg) a.img = pImg; pImg = '';
     SL.queue('announcements', id, a, { merge: false }); SL.cache.ann = [Object.assign({ id }, a)].concat(SL.cache.ann || []); ui.toast('تم النشر ✓'); SL.render();
   };
   SL.act.postToggle = el => { const show = el.dataset.v === '1'; SL.queue('announcements', el.dataset.i, { show }); const a = (SL.cache.ann || []).find(x => x.id === el.dataset.i); if (a) a.show = show; SL.render(); };

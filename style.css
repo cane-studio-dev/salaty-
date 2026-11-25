@@ -59,6 +59,7 @@ nav.bottom button .i{font-size:21px;line-height:1;filter:grayscale(.6);transitio
 nav.bottom button.on{color:var(--accent);font-weight:700}
 nav.bottom button.on .i{filter:none;transform:translateY(-2px) scale(1.12)}
 .sig{text-align:center;padding:1px 0 0;line-height:1}
+.sig span{font-family:'Mont',sans-serif;font-weight:200;font-size:11px;letter-spacing:.42em;color:var(--muted);padding:5px 8px;display:inline-block;direction:ltr}
 .sig a{font-family:'Mont',sans-serif;font-weight:200;font-size:11px;letter-spacing:.42em;color:var(--muted);text-decoration:none;padding:5px 8px;display:inline-block;direction:ltr}
 .sig a:active,.sig a:hover{color:var(--accent)}
 .sigbig{font-family:'Mont',sans-serif;font-weight:200;font-size:26px;letter-spacing:.34em;color:var(--accent);text-decoration:none;direction:ltr;display:inline-block;padding-inline-start:.34em}
@@ -306,3 +307,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .ixr{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:6px;border:1px solid var(--border);border-radius:12px;background:var(--card2);color:var(--text);font:inherit;cursor:pointer;text-align:right}
 .ixr b.num{min-width:28px;color:var(--accent)}
 .ixg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:52vh;overflow:auto}.ixg .ixr{margin:0;justify-content:center;gap:2px}
+
+.annimg{display:block;width:100%;max-height:340px;object-fit:cover;border-radius:14px;margin-top:10px;cursor:zoom-in}
+.pc.s{background:color-mix(in srgb,var(--bad) 18%,transparent);border-color:var(--bad)}
+nav.bottom button{position:relative}
+nav.bottom button .dot{position:absolute;top:0;right:50%;margin-right:-22px;min-width:16px;height:16px;border-radius:8px;background:var(--bad);color:#fff;font-size:10px;display:grid;place-items:center;padding:0 4px}
+.iconbtn{position:relative}
+.mtext .ay.play{background:color-mix(in srgb,var(--accent) 30%,transparent)}

@@ -69,13 +69,24 @@
   };
 
   /* ---------- الغلاف ---------- */
-  const NAV_STUDENT = [['home', '🏠', 'الرئيسية'], ['wird', '📖', 'الورد'], ['adhkar', '📿', 'الأذكار'], ['duas', '🤲', 'الأدعية'], ['honor', '🏆', 'الشرف'], ['settings', '⚙️', 'الإعدادات']];
+  const NAV_STUDENT = [['home', '🏠', 'الرئيسية'], ['wird', '📖', 'الورد'], ['adhkar', '📿', 'الأذكار'], ['duas', '🤲', 'الأدعية'], ['honor', '🏆', 'الشرف'], ['messages', '💬', 'الرسائل'], ['settings', '⚙️', 'الإعدادات']];
   const NAV_STAFF = [['admin', '🛠️', 'الإدارة'], ['honor', '🏆', 'الشرف'], ['messages', '💬', 'الرسائل'], ['settings', '⚙️', 'الإعدادات']];
-  const unreadCount = () => { const seen = SL.load('msgSeen', 0); return (SL.cache.msgs || []).filter(m => m.ts > seen).length; };
+  const seenKey = () => isStaff() ? 'smsgSeen' : 'msgSeen';
+  const unreadList = () => { const seen = SL.load(seenKey(), 0); return (isStaff() ? SL.cache.staffMsgs : SL.cache.msgs || []).filter(m => m.ts > seen); };
+  const unreadCount = () => unreadList().length;
+  const paintBadges = () => {
+    const n = unreadCount(), h = $('header.top [data-t="messages"]'), nb = $('nav.bottom [data-t="messages"]');
+    if (h) { const d = $('.dot', h); if (n) { if (d) d.textContent = N(n); else h.insertAdjacentHTML('beforeend', `<span class="dot">${N(n)}</span>`); } else if (d) d.remove(); }
+    if (nb) { const d = $('.dot', nb); if (n) { if (d) d.textContent = N(n); else nb.insertAdjacentHTML('beforeend', `<span class="dot">${N(n)}</span>`); } else if (d) d.remove(); }
+  };
+  const notifyMsgs = () => {
+    if (!SL.me || SL.demo) return; const un = unreadList(); if (!un.length) return; const newest = Math.max(...un.map(m => m.ts)), note = SL.load('msgNote', 0);
+    if (newest > note) { SL.save('msgNote', newest); if (SL.tab !== 'messages') { ui.toast('📩 وصلتك رسالة جديدة — افتح «الرسائل»', 5000); try { SL.sound.play('wird'); } catch (e) {} if (navigator.vibrate) navigator.vibrate([80, 40, 80]); } }
+  };
   const shell = () => {
     const staff = isStaff(), nav = staff ? NAV_STAFF : NAV_STUDENT;
     if (!nav.some(n => n[0] === SL.tab) && SL.tab !== 'messages') SL.tab = nav[0][0];
-    const un = staff ? 0 : unreadCount();
+    const un = unreadCount();
     root.innerHTML = `
       ${SL.demo ? '<div class="preview-bar"><span>👁️ وضع المعاينة — هكذا يرى الطالب التطبيق</span><button class="btn sm sec" data-act="exitPreview">خروج</button></div>' : ''}
       <div id="app">
@@ -86,8 +97,8 @@
           ${staff ? '' : `<button class="iconbtn" data-act="tab" data-t="messages" title="الرسائل">💬${un ? `<span class="dot">${N(un)}</span>` : ''}</button>`}
         </header>
         <main id="page"></main>
-        <nav class="bottom"><div class="row">${nav.map(n => `<button data-act="tab" data-t="${n[0]}" class="${SL.tab === n[0] ? 'on' : ''}"><span class="i">${n[1]}</span>${n[2]}</button>`).join('')}</div>
-          <div class="sig"><a href="${CFG.devUrl}" target="_blank" rel="noopener" aria-label="MARWAN DEV">MARWAN DEV</a></div></nav>
+        <nav class="bottom"><div class="row">${nav.map(n => `<button data-act="tab" data-t="${n[0]}" class="${SL.tab === n[0] ? 'on' : ''}"><span class="i">${n[1]}</span>${n[2]}${n[0] === 'messages' && un ? `<span class="dot">${N(un)}</span>` : ''}</button>`).join('')}</div>
+          <div class="sig"><span>MARWAN DEV</span></div></nav>
       </div>`;
     render();
   };
@@ -99,7 +110,7 @@
     if (SL.afterRender) SL.afterRender(SL.tab);
   }
   SL.render = render; SL.shell = shell;
-  SL.act.tab = el => { SL.tab = el.dataset.t; SL.save('tab', SL.tab); window.scrollTo(0, 0); if (SL.tab === 'messages') { SL.save('msgSeen', Date.now()); } render(); const un = $('.iconbtn .dot'); if (un && SL.tab === 'messages') un.remove(); };
+  SL.act.tab = el => { SL.tab = el.dataset.t; SL.save('tab', SL.tab); window.scrollTo(0, 0); if (SL.tab === 'messages') { SL.save(seenKey(), Date.now()); } render(); paintBadges(); };
   SL.act.install = async () => {
     const e = SL.installEvt;
     if (e) { e.prompt(); try { await e.userChoice; } catch (x) {} SL.installEvt = null; if (SL.me) shell(); return; }
@@ -172,7 +183,7 @@
   }
   const prayerRow = s => {
     let right = '';
-    if (s.st === 'done') right = `<span class="badge ok">✓ ${s.rec.where === 'mosque' ? 'في المسجد 🕌' : 'في البيت 🏠'}</span><div class="tm">${SL.fmtTime(s.rec.ts)}${s.rec.delay != null ? ' · بعد ' + N(s.rec.delay) + ' د' : ''}</div>`;
+    if (s.st === 'done') right = `<span class="badge ${s.rec.sus ? 'bad' : 'ok'}">${s.rec.sus ? '⚠️ مسجد — غير صادق' : '✓ ' + (s.rec.where === 'mosque' ? 'في المسجد 🕌' : 'في البيت 🏠')}</span><div class="tm">${SL.fmtTime(s.rec.ts)}${s.rec.delay != null ? ' · بعد ' + N(s.rec.delay) + ' د' : ''}</div>`;
     else if (s.st === 'open') right = `<button class="btn sm" data-act="pray" data-p="${s.id}">سجّلت صلاتي ✓</button><div class="tm">يُغلق بعد <b class="num" data-cd="win" data-at="${s.end}">${SL.fmtDur(s.end - Date.now())}</b></div>`;
     else if (s.st === 'upcoming') right = `<span class="badge">بعد <span class="num" data-cd="until" data-at="${s.at}">${SL.fmtDur(s.at - Date.now())}</span></span>`;
     else right = '<span class="badge bad">فاتت · أُغلق التسجيل</span>';
@@ -197,7 +208,7 @@
       ${SL.mushafCard ? SL.mushafCard() : ''}${dhikrBoard()}${sduaCards()}${quranCard()}
       <div class="card"><div class="row"><h3 class="grow">📖 ورد اليوم</h3>${wdone ? '<span class="badge ok">✓ أتممته</span>' : wird ? '<span class="badge acc">جديد</span>' : ''}</div>
         ${wird ? `<div class="muted small" style="margin-bottom:8px">${E(wird.title || '')}</div><button class="btn block ${wdone ? 'sec' : ''}" data-act="tab" data-t="wird">${wdone ? 'عرض الورد' : 'اقرأ الورد وسجّل إتمامه'}</button>` : '<div class="empty" style="padding:6px">لم تنشر الإدارة ورد اليوم بعد.</div>'}</div>
-      ${(SL.cache.ann || []).filter(a => a.kind !== 'honor' && a.show !== false).slice(0, 4).map(a => `<div class="card"><div class="row"><h3 class="grow">📢 ${E(a.title || 'إعلان')}</h3><span class="small muted">${SL.fmtShort(SL.dkey(new Date(a.ts)))}</span></div><div style="line-height:1.9;white-space:pre-wrap">${E(a.text)}</div></div>`).join('')}
+      ${(SL.cache.ann || []).filter(a => a.kind !== 'honor' && a.show !== false).slice(0, 4).map(a => `<div class="card"><div class="row"><h3 class="grow">📢 ${E(a.title || 'إعلان')}</h3><span class="small muted">${SL.fmtShort(SL.dkey(new Date(a.ts)))}</span></div><div style="line-height:1.9;white-space:pre-wrap">${E(a.text)}</div>${a.img ? `<img class="annimg" src="${a.img}" alt="" data-act="annZoom" data-i="${E(a.id)}">` : ''}</div>`).join('')}
       <div class="small muted center" style="padding:4px 12px;line-height:1.8">المواقيت محسوبة بطريقة الهيئة المصرية العامة للمساحة وهي تقريبية — يمكنك ضبط الدقائق من الإعدادات لتطابق مسجدك.<br>كل صلاة تُسجَّل بوقتها الحقيقي حتى لو كنت بدون إنترنت.</div>`;
   };
 
@@ -218,6 +229,10 @@
     const st = SL.prayerStates(now, today).find(s => s.id === pid);
     if (!st || st.st !== 'open') { ui.close(); ui.toast('أُغلق تسجيل هذه الصلاة'); render(); return; }
     const rec = { ts: now, where, delay: Math.max(0, Math.round((now - st.at) / 60000)) };
+    if (where === 'mosque' && rec.delay > 20) {
+      if (!el.dataset.force) { ui.sheet(`<h2 style="margin:0 0 8px">⚠️ تنبيه</h2><p style="line-height:1.9;margin:0 0 14px">الإقامة بتكون بعد الأذان بحوالي ٢٠ دقيقة، وأنت بتسجّل بعد <b>${N(rec.delay)}</b> دقيقة، فتسجيل «في المسجد» هنا غير صحيح غالباً. لو صليت في البيت سجّلها «في البيت». لو أكّدت المسجد هتتعلّم <b>غير صادق</b> وتظهر للإدارة.</p><div class="col"><button class="btn" data-act="prayWhere" data-p="${pid}" data-w="home">🏠 صليت في البيت</button><button class="btn bad" data-act="prayWhere" data-p="${pid}" data-w="mosque" data-force="1">أؤكد المسجد (غير صادق)</button></div>`, { mid: true }); return; }
+      rec.sus = true; ui.toast('⚠️ سُجّلت «غير صادق» لأن الإقامة بعد الأذان بـ٢٠ دقيقة — والإدارة هتعرف', 5000);
+    }
     today[pid] = rec; putDays(days);
     const me = meEff();
     if (!SL.demo) SL.queue('days', `${me.sid}_${dk}`, { sid: me.sid, name: me.name, date: dk, p: { [pid]: rec }, upd: now });
@@ -225,6 +240,7 @@
     setTimeout(() => openDua(pid), 350);
   };
   SL.act.dua = el => openDua(el.dataset.p);
+  SL.act.annZoom = el => { const x = (SL.cache.ann || []).find(y => y.id === el.dataset.i); if (x && x.img) ui.sheet(`<img src="${x.img}" style="width:100%;border-radius:14px" alt="">`); };
 
   /* ---------- سجل الأنشطة: التسبيح، الأذكار، الأدعية ---------- */
   SL._acts = {};
@@ -615,6 +631,7 @@
 
   SL.on('status', () => { const c = $('#chip'); if (c) c.innerHTML = syncChip(); if (SL.tab === 'settings' && !$('#overlay.on')) render(); });
   SL.on('data', () => {
+    notifyMsgs(); paintBadges();
     if ($('#overlay.on')) return; const ae = document.activeElement;
     if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && $('#page') && $('#page').contains(ae)) return;
     if (SL.me && $('#page') && ['home', 'honor', 'wird', 'messages', 'admin'].includes(SL.tab)) { if (SL.tab === 'admin' && SL.adminBusy) return; render(true); }

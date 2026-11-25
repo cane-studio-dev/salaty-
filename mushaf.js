@@ -40,6 +40,25 @@
   const remaining = tw => { const r = tw.range, mx = Math.max(wprog().max, r.p1 - 1); return Math.max(0, r.p2 - Math.min(mx, r.p2)); };
   const posLine = p => `سورة ${E(p.sn)} — آية ${N(p.ay)} — صفحة ${N(p.page)}`;
 
+  /* ---------- التلاوة الصوتية (آية بآية — تحتاج إنترنت) ---------- */
+  const RECITERS = [['Alafasy_128kbps', 'مشاري العفاسي'], ['Abdul_Basit_Murattal_192kbps', 'عبد الباسط عبد الصمد (مرتل)'], ['Husary_128kbps', 'محمود خليل الحصري'], ['Minshawy_Murattal_128kbps', 'محمد صديق المنشاوي (مرتل)'], ['Abdurrahmaan_As-Sudais_192kbps', 'عبد الرحمن السديس'], ['Saood_ash-Shuraym_128kbps', 'سعود الشريم'], ['Maher_AlMuAyqali_128kbps', 'ماهر المعيقلي'], ['Ghamadi_40kbps', 'سعد الغامدي'], ['Hudhaify_128kbps', 'علي الحذيفي'], ['Abu_Bakr_Ash-Shaatree_128kbps', 'أبو بكر الشاطري'], ['Muhammad_Ayyoub_128kbps', 'محمد أيوب']];
+  const rec = () => { const r = SL.load('mrec', RECITERS[0][0]); return RECITERS.some(x => x[0] === r) ? r : RECITERS[0][0]; };
+  const p3 = n => String(n).padStart(3, '0');
+  let au = null, playA = 0;
+  const markPlay = () => { $$('.ay.play').forEach(x => x.classList.remove('play')); const t = $(`.ay[data-a="${playA}"]`); if (t) { t.classList.add('play'); t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } };
+  const stopAudio = () => { if (au) { au.onended = au.onerror = null; au.pause(); au.removeAttribute('src'); au = null; } playA = 0; $$('.ay.play').forEach(x => x.classList.remove('play')); const b = $('#mPlay'); if (b) b.textContent = '▶'; };
+  const playAyah = a => {
+    if (!R || a > 6236) return stopAudio();
+    const pg = Q.pageOf(a); if (pg !== R.page) { R.auto = true; go(pg); R.auto = false; }
+    playA = a; markPlay(); R.tapped = a; paintBars();
+    if (!au) { au = new Audio(); au.preload = 'auto'; au.onended = () => playAyah(playA + 1); au.onerror = () => { ui.toast('تعذّر تشغيل الصوت — التلاوة تحتاج اتصالاً بالإنترنت'); stopAudio(); }; }
+    au.src = `https://everyayah.com/data/${rec()}/${p3(Q.surahOf(a))}${p3(Q.ayahNo(a))}.mp3`;
+    const pr = au.play(); if (pr && pr.catch) pr.catch(() => { ui.toast('تعذّر تشغيل التلاوة — تأكد من اتصال الإنترنت'); stopAudio(); });
+    $('#mPlay').textContent = '⏸'; try { new Audio().src = `https://everyayah.com/data/${rec()}/${p3(Q.surahOf(Math.min(6236, a + 1)))}${p3(Q.ayahNo(Math.min(6236, a + 1)))}.mp3`; } catch (e) {}
+  };
+  const togglePlay = () => { if (au && !au.paused) { au.pause(); $('#mPlay').textContent = '▶'; return; } if (au && au.src && playA) { au.play().catch(() => {}); $('#mPlay').textContent = '⏸'; return; } playAyah(R.tapped || R.cur); };
+  const pickRec = () => { ui.sheet(`<h2 style="margin:0 0 10px">🎙️ اختر القارئ</h2><div class="hint" style="margin-bottom:10px">التلاوة تُبثّ من الإنترنت آية بآية.</div>${RECITERS.map(r => `<button class="ixr" data-r="${r[0]}"><span class="grow">${r[1]}</span>${rec() === r[0] ? '<b>✓</b>' : ''}</button>`).join('')}`); $$('[data-r]', $('#overlay')).forEach(b => b.onclick = () => { SL.save('mrec', b.dataset.r); const was = playA; ui.close(); if (was) playAyah(was); else ui.toast('تم اختيار القارئ ✓'); }); };
+
   /* ---------- القارئ ---------- */
   let R = null;
   const fs = () => Math.max(18, Math.min(40, +SL.load('mfs', 26) || 26));
@@ -72,7 +91,7 @@
     void tw;
   };
   const go = (p, keepScroll) => {
-    p = Math.max(1, Math.min(604, p)); R.page = p; R.tapped = null; const sp = Q.pageSpan(p), rf = R.range && R.range.fa >= sp[0] && R.range.fa <= sp[1] && p === R.range.p1 ? R.range.fa : 0; R.cur = rf || sp[0];
+    if (!R.auto) stopAudio(); p = Math.max(1, Math.min(604, p)); R.page = p; R.tapped = null; const sp = Q.pageSpan(p), rf = R.range && R.range.fa >= sp[0] && R.range.fa <= sp[1] && p === R.range.p1 ? R.range.fa : 0; R.cur = rf || sp[0];
     $('#mPage').innerHTML = pageHTML(p); $('#mHead').innerHTML = `<span>${'سورة ' + E(Q.sName(Q.surahOf(Q.pageSpan(p)[0])))}</span><span>الجزء ${N(Q.juzOf(p))}</span>`;
     $('#mNum').textContent = N(p); if (!keepScroll) $('#mBody').scrollTop = 0; if (rf) { const t = $(`.ay[data-a="${rf}"]`); if (t) t.scrollIntoView({ block: 'start' }); }
     if (R.range && p >= R.range.p1) { const w = wprog(); if (p > w.max) SL.save('wprog', { date: SL.dkey(), max: Math.min(p, R.range.p2) }); }
@@ -102,7 +121,7 @@
     $$('[data-ix]', $('#overlay')).forEach(b => b.onclick = () => show(b.dataset.ix)); show('s');
   };
   const close = () => {
-    if (!R) return; try { savePos(R.tapped || curAyah(), R.page); } catch (e) {}
+    if (!R) return; stopAudio(); try { savePos(R.tapped || curAyah(), R.page); } catch (e) {}
     $('#mushaf') && $('#mushaf').remove(); document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; R = null; SL.render(true);
   };
   const onKey = e => { if (!R) return; if (e.key === 'ArrowLeft') go(R.page + 1); else if (e.key === 'ArrowRight') go(R.page - 1); else if (e.key === 'Escape' && !$('#overlay.on')) close(); };
@@ -119,10 +138,11 @@
       <div class="mpr"><i id="mProg"></i></div>
       <div id="mBody"><div class="mframe"><div class="mhead" id="mHead"></div><div class="mtext" id="mPage"></div><div class="mnum"><span id="mNum"></span></div></div></div>
       <div class="mbar"><button class="mx" id="mPrev" aria-label="الصفحة السابقة">›</button><div class="grow center" id="mFoot"></div><button class="mx" id="mNext" aria-label="الصفحة التالية">‹</button></div>
-      <div class="mfz"><button class="mx" id="mFp">أ+</button><button class="mx" id="mFm">أ−</button></div>`;
+      <div class="mfz"><button class="mx" id="mPlay" aria-label="تشغيل التلاوة">▶</button><button class="mx" id="mRec" aria-label="القارئ">🎙️</button><button class="mx" id="mFp">أ+</button><button class="mx" id="mFm">أ−</button></div>`;
     document.body.appendChild(el); document.body.style.overflow = 'hidden'; document.documentElement.style.setProperty('--mfs', fs() + 'px');
     $('#mClose').onclick = close; $('#mIdx').onclick = index; $('#mPrev').onclick = () => go(R.page - 1); $('#mNext').onclick = () => go(R.page + 1);
     const fz = d => { SL.save('mfs', Math.max(18, Math.min(40, fs() + d))); document.documentElement.style.setProperty('--mfs', fs() + 'px'); };
+    $('#mPlay').onclick = togglePlay; $('#mRec').onclick = pickRec;
     $('#mFp').onclick = () => fz(2); $('#mFm').onclick = () => fz(-2);
     const body = $('#mBody'); let tx = 0, ty = 0, st = 0;
     body.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; st = Date.now(); }, { passive: true });

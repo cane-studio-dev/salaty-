@@ -140,7 +140,7 @@ window.SL = window.SL || {};
 
   /* ---------- النقاط ولوحة الشرف ---------- */
   SL.speedBonus = m => m <= 10 ? 5 : m <= 20 ? 4 : m <= 35 ? 3 : m <= 50 ? 2 : m <= 70 ? 1 : 0;
-  SL.recPoints = r => 10 + SL.speedBonus(Math.max(0, r.delay || 0)) + (r.where === 'mosque' ? 3 : 0);
+  SL.recPoints = r => 10 + SL.speedBonus(Math.max(0, r.delay || 0)) + (r.where === 'mosque' && !r.sus ? 3 : 0);
   /** يجمع مستندات الأيام إلى ترتيب طلاب. docs: {id: {sid,name,date,p}} */
   SL.aggregate = (docs, fromKey, toKey) => {
     const m = {};
@@ -151,7 +151,7 @@ window.SL = window.SL || {};
       for (const pid in (d.p || {})) {
         const r = d.p[pid]; if (!r) continue;
         s.pts += SL.recPoints(r); s.cnt++; s.delaySum += Math.max(0, r.delay || 0);
-        if (r.where === 'mosque') s.mosque++;
+        if (r.where === 'mosque' && !r.sus) s.mosque++;
         if (r.ts < s.first) s.first = r.ts;
       }
     }
