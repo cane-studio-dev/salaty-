@@ -28,7 +28,14 @@
     if (m === 'wird') for (const id in D.wirds) { const d = D.wirds[id]; if (d && d.sid === sid && d.date >= r.from && d.date <= r.to) n++; }
     return n;
   };
-  const data = () => ({ days: SL.allDays(), acts: SL.allActs(), wirds: SL.allWird() });
+  const X = { d: {}, a: {}, w: {}, from: '', t: 0, busy: false };
+  const data = () => ({ days: Object.assign({}, X.d, SL.allDays()), acts: Object.assign({}, X.a, SL.allActs()), wirds: Object.assign({}, X.w, SL.allWird()) });
+  // تحدٍّ أطول من نافذة البيانات العادية: الإدارة تجلب الأيام الأقدم عند الطلب
+  const fetchOld = async () => {
+    if (!isStaff() || X.busy || !SL.fs) return; const chs = items('challenge').filter(c => c.from && c.show !== false); if (!chs.length) return;
+    const from = chs.map(c => c.from).sort()[0]; if (from >= SL.rangeFrom() || (X.from === from && Date.now() - X.t < 120000)) return;
+    X.busy = true; try { const db = SL.fs(), q = c => db.collection(c).where('date', '>=', from), [a, b, c] = await Promise.all([SL.getOnce(q('days')), SL.getOnce(q('acts')), SL.getOnce(q('wirdDone'))]); X.d = SL.snapMap(a); X.a = SL.snapMap(b); X.w = SL.snapMap(c); X.from = from; X.t = Date.now(); if (SL.tab === 'admin' && SL.aTab === 'chal') SL.render(true); } catch (e) { X.t = Date.now(); X.from = from; } X.busy = false;
+  };
   const completions = (c, D) => { const out = []; for (const id in D.acts) { const d = D.acts[id], e = d && d.z && d.z['c_' + c.id]; if (e && e.done) out.push({ sid: d.sid, name: d.name, ts: e.done }); } const seen = {}; return out.sort((a, b) => a.ts - b.ts).filter(x => seen[x.sid] ? false : (seen[x.sid] = 1)); };
   const medal = i => ['🥇', '🥈', '🥉'][i] || '✓';
 
@@ -160,10 +167,10 @@
       <input type="text" id="cTitle" placeholder="عنوان التحدي (مثال: تحدي الفجر في المسجد)" maxlength="80">
       <textarea id="cText" placeholder="التفاصيل والشروط…" style="min-height:70px"></textarea>
       <label class="f">نوع الهدف<select id="cMetric">${mopts}</select></label>
-      <div class="row"><label class="f grow">العدد المطلوب<input type="number" id="cTarget" value="5" min="1" max="1000" inputmode="numeric"></label><label class="f grow">المدة (أيام)<input type="number" id="cDays" value="7" min="1" max="14" inputmode="numeric"></label></div>
+      <div class="row"><label class="f grow">العدد المطلوب<input type="number" id="cTarget" value="5" min="1" max="1000" inputmode="numeric"></label><label class="f grow">المدة (أيام)<input type="number" id="cDays" value="7" min="1" max="365" inputmode="numeric"></label></div>
       <label class="f">يبدأ في<input type="date" id="cFrom" value="${today()}"></label>
       <input type="text" id="cPrize" placeholder="الجائزة (اختياري)" maxlength="80">
-      <button class="btn" data-act="chalPub">نشر التحدي</button><div class="hint">أقصى مدة ١٤ يوماً. التطبيق يتابع تقدّم كل طالب تلقائياً ويبلغك لحظة إنجازه.</div></div></div>
+      <button class="btn" data-act="chalPub">نشر التحدي</button><div class="hint">أنت تحدد عدد الأيام. التطبيق يتابع تقدّم كل طالب تلقائياً ويبلغك لحظة إنجازه.</div></div></div>
     ${list.length ? list.map(c => { const done = completions(c, D), st = chStatus(c), r = chRange(c), t = Math.max(1, +c.target || 1), M = METRICS[c.metric] || ['🎯', '']; const rows = us.map(u => ({ u, p: progress(c, u.sid, D) })).sort((a, b) => b.p - a.p);
       return `<div class="card"><div class="row"><h3 class="grow" style="margin:0">🎯 ${E(c.title)}</h3><span class="badge ${st === 'on' ? 'acc' : ''}">${st === 'on' ? 'جاري' : st === 'soon' ? 'قادم' : 'انتهى'}</span></div>
       <div class="small muted" style="margin:6px 0">${M[0]} ${N(t)} ${E(M[1])} · ${SL.fmtShort(r.from)} – ${SL.fmtShort(r.to)}${c.prize ? ' · 🎁 ' + E(c.prize) : ''}</div>
@@ -173,7 +180,7 @@
   };
   SL.act.chalPub = () => {
     const title = val('cTitle'); if (!title) return ui.toast('اكتب عنوان التحدي');
-    const c = { kind: 'challenge', title, text: val('cText'), metric: val('cMetric') || 'prayers', target: Math.max(1, parseInt(SL.latinDigits(val('cTarget'))) || 5), days: Math.max(1, Math.min(14, parseInt(SL.latinDigits(val('cDays'))) || 7)), from: val('cFrom') || today(), prize: val('cPrize'), show: true, by: SL.me.name, ts: Date.now() };
+    const c = { kind: 'challenge', title, text: val('cText'), metric: val('cMetric') || 'prayers', target: Math.max(1, parseInt(SL.latinDigits(val('cTarget'))) || 5), days: Math.max(1, Math.min(365, parseInt(SL.latinDigits(val('cDays'))) || 7)), from: val('cFrom') || today(), prize: val('cPrize'), show: true, by: SL.me.name, ts: Date.now() };
     const id = SL.uid(); SL.queue('dhikr', id, c, { merge: false }); SL.cache.dhikr = [Object.assign({ id }, c)].concat(SL.cache.dhikr || []); ui.toast('تم نشر التحدي ✓ — ظهر لكل الطلاب'); SL.render(true);
   };
   SL.act.chalToggle = el => { const show = el.dataset.v === '1'; SL.queue('dhikr', el.dataset.i, { show }); const x = (SL.cache.dhikr || []).find(y => y.id === el.dataset.i); if (x) x.show = show; SL.render(true); };
@@ -202,7 +209,7 @@
 
   // إبلاغ الإدارة لحظياً عند إنجاز أي طالب لتحدٍّ
   SL.on('data', () => {
-    if (!isStaff()) return; const D = data(), seen = SL.load('chalSeen', null), now = {}, fresh = [];
+    if (!isStaff()) return; fetchOld(); const D = data(), seen = SL.load('chalSeen', null), now = {}, fresh = [];
     items('challenge').forEach(c => completions(c, D).forEach(x => { const k = x.sid + '_' + c.id; now[k] = 1; if (seen && !seen[k]) fresh.push(`${x.name} — ${c.title}`); }));
     if (!seen) { SL.save('chalSeen', now); return; }
     if (fresh.length) { SL.save('chalSeen', Object.assign({}, seen, now)); ui.toast('🎯 أنجز تحدياً: ' + fresh.slice(0, 2).join('، ') + (fresh.length > 2 ? ` +${N(fresh.length - 2)}` : ''), 7000); try { SL.sound.play('wird'); } catch (e) {} if (SL.tab === 'admin' && (SL.aTab === 'chal')) SL.render(true); }
