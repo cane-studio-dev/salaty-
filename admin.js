@@ -164,12 +164,13 @@
         <div class="hint" style="margin-top:8px">تهنئة الأسبوع تُحسب تلقائياً (أكثر طالب التزاماً). يمكنك استبدالها يدوياً:</div>
         <div class="col" style="margin-top:8px"><input type="text" id="woName" placeholder="اسم الطالب المكرَّم (اتركه فارغاً للتلقائي)" value="${E((S.weeklyOverride || {}).name || '')}"><input type="text" id="woMsg" placeholder="رسالة التهنئة / الجائزة" value="${E((S.weeklyOverride || {}).msg || '')}"><button class="btn sec" data-act="woSave">حفظ التهنئة اليدوية</button></div></div>
       <div class="card"><h2>📢 نشر إعلان أو تكريم</h2><div class="col">
-        <div class="seg"><button data-act="postKind" data-k="announce" class="${SL.postKind !== 'honor' ? 'on' : ''}">إعلان</button><button data-act="postKind" data-k="honor" class="${SL.postKind === 'honor' ? 'on' : ''}">تكريم / جائزة 🏆</button></div>
-        <input type="text" id="pTitle" placeholder="${SL.postKind === 'honor' ? 'عنوان التكريم (مثال: تكريم خاص)' : 'عنوان الإعلان'}" maxlength="80">
-        <textarea id="pText" placeholder="${SL.postKind === 'honor' ? 'اسم المكرَّم وكلمة التكريم…' : 'نص الإعلان…'}"></textarea>
+        <div class="seg" style="flex-wrap:wrap">${[['announce', 'إعلان'], ['hadith', '🌙 حديث'], ['story', '📖 حكاية'], ['benefit', '💡 فائدة'], ['photo', '🖼️ صورة'], ['honor', 'تكريم 🏆']].map(k => `<button data-act="postKind" data-k="${k[0]}" class="${SL.postKind === k[0] ? 'on' : ''}">${k[1]}</button>`).join('')}</div>
+        <input type="text" id="pTitle" placeholder="${SL.postKind === 'honor' ? 'عنوان التكريم (مثال: تكريم خاص)' : SL.postKind === 'hadith' ? 'عنوان (مثال: حديث اليوم)' : SL.postKind === 'story' ? 'عنوان الحكاية' : SL.postKind === 'benefit' ? 'عنوان الفائدة' : 'العنوان'}" maxlength="80">
+        <textarea id="pText" placeholder="${SL.postKind === 'honor' ? 'اسم المكرَّم وكلمة التكريم…' : SL.postKind === 'hadith' ? 'نص الحديث الشريف…' : SL.postKind === 'story' ? 'اكتب الحكاية…' : SL.postKind === 'photo' ? 'تعليق على الصورة (اختياري)' : 'النص…'}"></textarea>
+        ${SL.postKind === 'hadith' ? '<input type="text" id="pSrc" placeholder="المصدر (مثال: رواه البخاري ومسلم)" maxlength="120">' : ''}
         <label class="btn sec" style="text-align:center;cursor:pointer">🖼️ إرفاق صورة (اختياري)<input type="file" id="pImg" accept="image/*" hidden></label><img id="pImgPrev" class="annimg" style="display:none" alt="">
         <button class="btn" data-act="postPub">نشر للجميع</button></div></div>
-      <div class="card"><h3>المنشورات</h3><div class="col">${ann.length ? ann.map(a => `<div class="msg"><div class="meta"><b>${a.kind === 'honor' ? '🏆' : '📢'} ${E(a.title || '')}</b><span>${SL.fmtShort(SL.dkey(new Date(a.ts)))}</span></div><div class="small" style="white-space:pre-wrap">${E(a.text)}</div>${a.img ? `<img class="annimg" src="${a.img}" alt="">` : ''}
+      <div class="card"><h3>المنشورات</h3><div class="col">${ann.length ? ann.map(a => `<div class="msg"><div class="meta"><b>${a.kind === 'honor' ? '🏆' : ((SL.POST_KINDS || {})[a.kind] || ['📢'])[0]} ${E(a.title || '')}</b><span>${SL.fmtShort(SL.dkey(new Date(a.ts)))}</span></div><div class="small" style="white-space:pre-wrap">${E(a.text)}</div>${a.img ? `<img class="annimg" src="${a.img}" alt="">` : ''}
         <div class="row" style="margin-top:8px"><button class="btn sm sec" data-act="postToggle" data-i="${a.id}" data-v="${a.show === false ? 1 : 0}">${a.show === false ? 'إظهار' : 'إخفاء'}</button><button class="btn sm bad" data-act="postDel" data-i="${a.id}">حذف</button></div></div>`).join('') : '<div class="empty">لا توجد منشورات.</div>'}</div></div>`;
   }
   SL.postKind = 'announce';
@@ -180,7 +181,7 @@
   SL.act.postPub = () => {
     const title = v('#pTitle').trim(), text = v('#pText').trim(); if (!text && !pImg) return ui.toast('اكتب النص أو أرفق صورة');
     if (pImg.length > 700000) { pImg = ''; return ui.toast('الصورة كبيرة، اختر صورة أصغر'); }
-    const id = SL.uid(), a = { title, text, kind: SL.postKind, show: true, by: SL.me.name, ts: Date.now() }; if (pImg) a.img = pImg; pImg = '';
+    const id = SL.uid(), a = { title, text, kind: SL.postKind, show: true, by: SL.me.name, ts: Date.now() }; const src = ($('#pSrc') || {}).value; if (src && src.trim()) a.src = src.trim(); if (pImg) a.img = pImg; pImg = '';
     SL.queue('announcements', id, a, { merge: false }); SL.cache.ann = [Object.assign({ id }, a)].concat(SL.cache.ann || []); ui.toast('تم النشر ✓'); SL.render();
   };
   SL.act.postToggle = el => { const show = el.dataset.v === '1'; SL.queue('announcements', el.dataset.i, { show }); const a = (SL.cache.ann || []).find(x => x.id === el.dataset.i); if (a) a.show = show; SL.render(); };

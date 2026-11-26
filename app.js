@@ -208,7 +208,7 @@
       ${SL.mushafCard ? SL.mushafCard() : ''}${dhikrBoard()}${sduaCards()}${quranCard()}
       <div class="card"><div class="row"><h3 class="grow">📖 ورد اليوم</h3>${wdone ? '<span class="badge ok">✓ أتممته</span>' : wird ? '<span class="badge acc">جديد</span>' : ''}</div>
         ${wird ? `<div class="muted small" style="margin-bottom:8px">${E(wird.title || '')}</div><button class="btn block ${wdone ? 'sec' : ''}" data-act="tab" data-t="wird">${wdone ? 'عرض الورد' : 'اقرأ الورد وسجّل إتمامه'}</button>` : '<div class="empty" style="padding:6px">لم تنشر الإدارة ورد اليوم بعد.</div>'}</div>
-      ${(SL.cache.ann || []).filter(a => a.kind !== 'honor' && a.show !== false).slice(0, 4).map(a => `<div class="card"><div class="row"><h3 class="grow">📢 ${E(a.title || 'إعلان')}</h3><span class="small muted">${SL.fmtShort(SL.dkey(new Date(a.ts)))}</span></div><div style="line-height:1.9;white-space:pre-wrap">${E(a.text)}</div>${a.img ? `<img class="annimg" src="${a.img}" alt="" data-act="annZoom" data-i="${E(a.id)}">` : ''}</div>`).join('')}
+      ${(SL.cache.ann || []).filter(a => a.kind !== 'honor' && a.show !== false).slice(0, 8).map(a => { const k = POST_KINDS[a.kind] || POST_KINDS.announce, hd = a.kind === 'hadith'; return `<div class="card post-${a.kind || 'announce'}"><div class="row"><h3 class="grow">${k[0]} ${E(a.title || k[1])}</h3><span class="badge">${k[1]}</span></div><div style="${hd ? "font-family:'Amiri Quran','Amiri',serif;font-size:22px;line-height:2.1;text-align:center;padding:6px 4px" : 'line-height:1.9'};white-space:pre-wrap">${E(a.text)}</div>${a.src ? `<div class="small muted" style="margin-top:6px;text-align:center">${E(a.src)}</div>` : ''}${a.img ? `<img class="annimg" src="${a.img}" alt="" data-act="annZoom" data-i="${E(a.id)}">` : ''}<div class="small muted" style="margin-top:8px">${SL.fmtShort(SL.dkey(new Date(a.ts)))}</div></div>`; }).join('')}
       <div class="small muted center" style="padding:4px 12px;line-height:1.8">المواقيت محسوبة بطريقة الهيئة المصرية العامة للمساحة وهي تقريبية — يمكنك ضبط الدقائق من الإعدادات لتطابق مسجدك.<br>كل صلاة تُسجَّل بوقتها الحقيقي حتى لو كنت بدون إنترنت.</div>`;
   };
 
@@ -229,9 +229,9 @@
     const st = SL.prayerStates(now, today).find(s => s.id === pid);
     if (!st || st.st !== 'open') { ui.close(); ui.toast('أُغلق تسجيل هذه الصلاة'); render(); return; }
     const rec = { ts: now, where, delay: Math.max(0, Math.round((now - st.at) / 60000)) };
-    if (where === 'mosque' && rec.delay > 20) {
-      if (!el.dataset.force) { ui.sheet(`<h2 style="margin:0 0 8px">⚠️ تنبيه</h2><p style="line-height:1.9;margin:0 0 14px">الإقامة بتكون بعد الأذان بحوالي ٢٠ دقيقة، وأنت بتسجّل بعد <b>${N(rec.delay)}</b> دقيقة، فتسجيل «في المسجد» هنا غير صحيح غالباً. لو صليت في البيت سجّلها «في البيت». لو أكّدت المسجد هتتعلّم <b>غير صادق</b> وتظهر للإدارة.</p><div class="col"><button class="btn" data-act="prayWhere" data-p="${pid}" data-w="home">🏠 صليت في البيت</button><button class="btn bad" data-act="prayWhere" data-p="${pid}" data-w="mosque" data-force="1">أؤكد المسجد (غير صادق)</button></div>`, { mid: true }); return; }
-      rec.sus = true; ui.toast('⚠️ سُجّلت «غير صادق» لأن الإقامة بعد الأذان بـ٢٠ دقيقة — والإدارة هتعرف', 5000);
+    if (where === 'mosque' && rec.delay < 20) {
+      if (!el.dataset.force) { ui.sheet(`<h2 style="margin:0 0 8px">⚠️ تنبيه</h2><p style="line-height:1.9;margin:0 0 14px">صلاة الجماعة في المسجد بتبدأ عند الإقامة، أي بعد الأذان بحوالي ٢٠ دقيقة، وأنت بتسجّل بعد <b>${N(rec.delay)}</b> دقيقة بس، فتسجيل «في المسجد» الآن غير صحيح غالباً. لو صليت في البيت سجّلها «في البيت». لو أكّدت المسجد هتتعلّم <b>غير صادق</b> وتظهر للإدارة.</p><div class="col"><button class="btn" data-act="prayWhere" data-p="${pid}" data-w="home">🏠 صليت في البيت</button><button class="btn bad" data-act="prayWhere" data-p="${pid}" data-w="mosque" data-force="1">أؤكد المسجد (غير صادق)</button></button></div>`, { mid: true }); return; }
+      rec.sus = true; ui.toast('⚠️ سُجّلت «غير صادق» لأن الجماعة بتبدأ بعد الأذان بـ٢٠ دقيقة — والإدارة هتعرف', 5000);
     }
     today[pid] = rec; putDays(days);
     const me = meEff();
@@ -240,6 +240,8 @@
     setTimeout(() => openDua(pid), 350);
   };
   SL.act.dua = el => openDua(el.dataset.p);
+  const POST_KINDS = { announce: ['📢', 'إعلان'], hadith: ['🌙', 'حديث'], story: ['📖', 'حكاية'], benefit: ['💡', 'فائدة'], photo: ['🖼️', 'صورة'] };
+  SL.POST_KINDS = POST_KINDS;
   SL.act.annZoom = el => { const x = (SL.cache.ann || []).find(y => y.id === el.dataset.i); if (x && x.img) ui.sheet(`<img src="${x.img}" style="width:100%;border-radius:14px" alt="">`); };
 
   /* ---------- سجل الأنشطة: التسبيح، الأذكار، الأدعية ---------- */

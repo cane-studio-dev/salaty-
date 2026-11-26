@@ -314,3 +314,5 @@ nav.bottom button{position:relative}
 nav.bottom button .dot{position:absolute;top:0;right:50%;margin-right:-22px;min-width:16px;height:16px;border-radius:8px;background:var(--bad);color:#fff;font-size:10px;display:grid;place-items:center;padding:0 4px}
 .iconbtn{position:relative}
 .mtext .ay.play{background:color-mix(in srgb,var(--accent) 30%,transparent)}
+.post-hadith{background:linear-gradient(160deg,color-mix(in srgb,var(--gold) 14%,var(--card)),var(--card));border:1px solid color-mix(in srgb,var(--gold) 50%,transparent)}
+.post-story{border-inline-start:5px solid var(--accent)}.post-benefit{border-inline-start:5px solid var(--gold)}
