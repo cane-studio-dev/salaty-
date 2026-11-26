@@ -16,11 +16,11 @@
   const cell = (r, closed) => r ? `<span class="cell ${r.where === 'mosque' ? 'm' : 'h'}" title="${SL.fmtTime(r.ts)}">${r.where === 'mosque' ? 'م' : 'ب'}</span>` : `<span class="cell ${closed ? 'x' : 'n'}">${closed ? '✗' : '–'}</span>`;
   const noCloud = () => !SL.cloud.enabled ? '<div class="card empty">⚠️ لوحة الإدارة تحتاج ربط التطبيق بـ Firebase (راجع README).</div>' : '';
 
-  const TABS = () => { const t = [['students', '👥 متابعة الطلاب'], ['acts', '📿 التسبيح والأدعية'], ['wird', '📖 الورد'], ['posts', '📢 الإعلانات'], ['report', '🧾 التقرير الشهري']]; if (SL.me.role === 'super') t.push(['super', '👑 الإدارة العليا']); return t; };
+  const TABS = () => { const t = [['students', '👥 متابعة الطلاب'], ['acts', '📿 التسبيح والأدعية'], ['wird', '📖 الورد'], ['posts', '📢 الإعلانات'], ['report', '🧾 التقرير الشهري']]; (SL.xTabs || []).forEach(x => t.push([x[0], x[1]])); if (SL.me.role === 'super') t.push(['super', '👑 الإدارة العليا']); return t; };
 
   SL.pages.admin = () => {
     const tabs = `<div class="tabs">${TABS().map(t => `<button data-act="aTab" data-t="${t[0]}" class="${SL.aTab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>`;
-    const fn = { students: tStudents, acts: tActs, wird: tWird, posts: tPosts, report: tReport, super: tSuper }[SL.aTab] || tStudents;
+    const xf = {}; (SL.xTabs || []).forEach(x => xf[x[0]] = x[2]); const fn = Object.assign({ students: tStudents, acts: tActs, wird: tWird, posts: tPosts, report: tReport, super: tSuper }, xf)[SL.aTab] || tStudents;
     return noCloud() + tabs + fn();
   };
   SL.act.aTab = el => { SL.aTab = el.dataset.t; SL.render(); };
@@ -108,7 +108,7 @@
   /* ---------- التسبيح والأدعية (إدارة + متابعة) ---------- */
   SL.actKind = 'dhikr';
   function tActs() {
-    const C = ctx(), us = C.us, S = settings(), items = (SL.cache.dhikr || []).slice(), tasks = SL.dhikrTasks(), isD = SL.actKind === 'dhikr';
+    const C = ctx(), us = C.us, S = settings(), items = (SL.cache.dhikr || []).filter(x => x.kind === 'dhikr' || x.kind === 'dua'), tasks = SL.dhikrTasks(), isD = SL.actKind === 'dhikr';
     const rows = us.map(u => { const z = zOf(C, u), s = zSum(z); return { u, s }; }).sort((x, y) => (y.s.dh + y.s.ad + y.s.du) - (x.s.dh + x.s.ad + x.s.du) || x.u.name.localeCompare(y.u.name, 'ar'));
     return `<div class="card"><h2 style="margin:0 0 10px;font-size:18px">📿 إنجاز اليوم لكل ذكر</h2><div class="col">${tasks.length ? tasks.map(t => { const n = us.filter(u => (zOf(C, u)['t_' + t.id] || {}).done).length, p = us.length ? Math.round(n / us.length * 100) : 0; return `<div class="msg"><div class="meta" style="margin:0"><b>${t.icon} ${E(t.title)}</b><span class="num">${N(n)}/${N(us.length)}</span></div><div class="bar"><i style="width:${p}%"></i></div></div>`; }).join('') : '<div class="empty">لا توجد أذكار مفعّلة.</div>'}</div>
       <div class="setrow" style="margin-top:8px"><span>إظهار التسبيحات الافتراضية (٥ أذكار × ١٠٠)</span><label class="switch"><input type="checkbox" data-aset="showDefaultDhikr" ${S.showDefaultDhikr !== false ? 'checked' : ''}><i></i></label></div></div>

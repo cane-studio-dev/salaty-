@@ -166,6 +166,8 @@ window.SL = window.SL || {};
     if (k === 'u') return Math.min(n, 5);
     if (k === 'q') return Math.min(n, 10);
     if (k === 'd') return e.done ? 4 : 0;
+    if (k === 'k') return e.ok ? 5 : 1;
+    if (k === 'c') return e.done ? 10 : 0;
     return 0;
   };
   /** ترتيب شامل: الصلاة + التسبيح + الأذكار + الأدعية + الورد */

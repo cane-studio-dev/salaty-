@@ -205,7 +205,7 @@
         <div class="sub">أتممت اليوم <b>${N(doneN)}</b> من ٥ صلوات</div></div>
       ${installCard()}${heroCards(allDays(), true)}
       <div class="plist">${states.map(prayerRow).join('')}</div>
-      ${SL.mushafCard ? SL.mushafCard() : ''}${dhikrBoard()}${sduaCards()}${quranCard()}
+      ${SL.extrasHome ? SL.extrasHome() : ''}${SL.mushafCard ? SL.mushafCard() : ''}${dhikrBoard()}${sduaCards()}${quranCard()}
       <div class="card"><div class="row"><h3 class="grow">📖 ورد اليوم</h3>${wdone ? '<span class="badge ok">✓ أتممته</span>' : wird ? '<span class="badge acc">جديد</span>' : ''}</div>
         ${wird ? `<div class="muted small" style="margin-bottom:8px">${E(wird.title || '')}</div><button class="btn block ${wdone ? 'sec' : ''}" data-act="tab" data-t="wird">${wdone ? 'عرض الورد' : 'اقرأ الورد وسجّل إتمامه'}</button>` : '<div class="empty" style="padding:6px">لم تنشر الإدارة ورد اليوم بعد.</div>'}</div>
       ${(SL.cache.ann || []).filter(a => a.kind !== 'honor' && a.show !== false).slice(0, 8).map(a => { const k = POST_KINDS[a.kind] || POST_KINDS.announce, hd = a.kind === 'hadith'; return `<div class="card post-${a.kind || 'announce'}"><div class="row"><h3 class="grow">${k[0]} ${E(a.title || k[1])}</h3><span class="badge">${k[1]}</span></div><div style="${hd ? "font-family:'Amiri Quran','Amiri',serif;font-size:22px;line-height:2.1;text-align:center;padding:6px 4px" : 'line-height:1.9'};white-space:pre-wrap">${E(a.text)}</div>${a.src ? `<div class="small muted" style="margin-top:6px;text-align:center">${E(a.src)}</div>` : ''}${a.img ? `<img class="annimg" src="${a.img}" alt="" data-act="annZoom" data-i="${E(a.id)}">` : ''}<div class="small muted" style="margin-top:8px">${SL.fmtShort(SL.dkey(new Date(a.ts)))}</div></div>`; }).join('')}
@@ -276,6 +276,7 @@
     return d;
   };
 
+  SL.allDays = allDays; SL.allActs = allActs; SL.allWird = allWird;
   const DHIKR_DEFAULT = [
     { id: 'd1', title: 'سبحان الله وبحمده', g: 100, icon: '📿' },
     { id: 'd2', title: 'أستغفر الله العظيم وأتوب إليه', g: 100, icon: '🤲' },
