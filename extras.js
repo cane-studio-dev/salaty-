@@ -10,24 +10,44 @@
 
   /* ================= التحديات ================= */
   const METRICS = {
-    prayers: ['🕌', 'صلوات مسجّلة (أي صلاة)'], fajr: ['🌅', 'صلوات فجر'], mosque: ['🕌', 'صلوات في المسجد (صادقة)'],
-    dhikr: ['📿', 'أذكار تسبيح مكتملة'], adhkar: ['🌤️', 'مجموعات أذكار مكتملة'], duas: ['🤲', 'أدعية مقروءة'],
+    prayer: ['🕌', 'الصلوات'], dhikr: ['📿', 'أذكار تسبيح مكتملة'], adhkar: ['🌤️', 'مجموعات أذكار مكتملة'], duas: ['🤲', 'أدعية مقروءة'],
     quran: ['📖', 'صفحات قرآن'], wird: ['📚', 'أيام إتمام الورد'], quiz: ['❓', 'إجابات صحيحة في المسابقة'], points: ['⭐', 'نقاط']
+  };
+  const PRAYS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+  const PNAME = { fajr: 'صلاة الفجر', dhuhr: 'صلاة الظهر', asr: 'صلاة العصر', maghrib: 'صلاة المغرب', isha: 'صلاة العشاء', all: 'الصلوات الخمس كاملة', any: 'أي صلاة' };
+  const PLACE = { mosque: 'في المسجد', home: 'في البيت', any: '' };
+  // توافق مع تحديات قديمة (prayers / fajr / mosque)
+  const norm = c => { let m = c.metric || 'prayer', pr = c.pr || 'any', pl = c.place || 'any'; if (m === 'prayers') m = 'prayer'; else if (m === 'fajr') { m = 'prayer'; pr = 'fajr'; } else if (m === 'mosque') { m = 'prayer'; pl = 'mosque'; } return { m, pr, pl, consec: !!c.consec && m !== 'points' }; };
+  const placeOk = (r, pl) => !!r && (pl === 'mosque' ? r.where === 'mosque' && !r.sus : pl === 'home' ? r.where === 'home' : true);
+  const ruleText = c => {
+    const n = norm(c), t = Math.max(1, +c.target || 1); let what, cnt;
+    if (n.m === 'prayer') { what = (PNAME[n.pr] + ' ' + PLACE[n.pl]).trim(); cnt = n.consec ? `${N(t)} يوم متتالي` : n.pr === 'any' ? `${N(t)} صلاة` : n.pr === 'all' ? `${N(t)} يوم` : `${N(t)} مرة`; }
+    else { what = (METRICS[n.m] || ['', ''])[1]; cnt = n.consec ? `${N(t)} يوم متتالي` : `${N(t)}`; }
+    return `${cnt} — ${what}`;
   };
   const chRange = c => ({ from: c.from, to: SL.dkey(SL.addDays(SL.fromKey(c.from), Math.max(1, +c.days || 7) - 1)) });
   const chStatus = c => { const r = chRange(c), t = SL.dkey(); return t < r.from ? 'soon' : t > r.to ? 'over' : 'on'; };
-  const progress = (c, sid, D) => {
-    const r = chRange(c), m = c.metric; let n = 0;
-    if (m === 'points') { const a = SL.aggregateAll(D.days, D.acts, D.wirds, r.from, r.to).find(x => x.sid === sid); return a ? a.pts : 0; }
-    for (const id in D.days) { const d = D.days[id]; if (!d || d.sid !== sid || d.date < r.from || d.date > r.to) continue; const p = d.p || {};
-      if (m === 'prayers') n += Object.keys(p).length; else if (m === 'fajr') n += p.fajr ? 1 : 0; else if (m === 'mosque') for (const k in p) if (p[k] && p[k].where === 'mosque' && !p[k].sus) n++; }
+  const dayVals = (c, sid, D) => {
+    const r = chRange(c), n = norm(c), V = {}, add = (d, v) => { V[d] = (V[d] || 0) + v; };
+    for (const id in D.days) { const d = D.days[id]; if (!d || d.sid !== sid || d.date < r.from || d.date > r.to || n.m !== 'prayer') continue; const p = d.p || {};
+      if (n.pr === 'any') add(d.date, PRAYS.filter(k => placeOk(p[k], n.pl)).length); else if (n.pr === 'all') add(d.date, PRAYS.every(k => placeOk(p[k], n.pl)) ? 1 : 0); else add(d.date, placeOk(p[n.pr], n.pl) ? 1 : 0); }
     for (const id in D.acts) { const d = D.acts[id]; if (!d || d.sid !== sid || d.date < r.from || d.date > r.to) continue; const z = d.z || {};
       for (const k in z) { const e = z[k] || {}, c0 = k.charAt(0);
-        if (m === 'dhikr' && c0 === 't' && e.done) n++; else if (m === 'adhkar' && c0 === 'a' && e.done) n++; else if (m === 'duas' && (k === 'u')) n += e.n || 0;
-        else if (m === 'quran' && k === 'q') n += e.n || 0; else if (m === 'quiz' && k === 'k_quiz' && e.ok) n++; } }
-    if (m === 'wird') for (const id in D.wirds) { const d = D.wirds[id]; if (d && d.sid === sid && d.date >= r.from && d.date <= r.to) n++; }
-    return n;
+        if (n.m === 'dhikr' && c0 === 't' && e.done) add(d.date, 1); else if (n.m === 'adhkar' && c0 === 'a' && e.done) add(d.date, 1); else if (n.m === 'duas' && k === 'u') add(d.date, e.n || 0);
+        else if (n.m === 'quran' && k === 'q') add(d.date, e.n || 0); else if (n.m === 'quiz' && k === 'k_quiz' && e.ok) add(d.date, 1); } }
+    if (n.m === 'wird') for (const id in D.wirds) { const d = D.wirds[id]; if (d && d.sid === sid && d.date >= r.from && d.date <= r.to) add(d.date, 1); }
+    return V;
   };
+  // يرجع {best, cur}: best = الإنجاز المحسوب (أطول سلسلة إن كان «متتالي»)، cur = السلسلة الحالية
+  const progressX = (c, sid, D) => {
+    const n = norm(c), r = chRange(c);
+    if (n.m === 'points') { const a = SL.aggregateAll(D.days, D.acts, D.wirds, r.from, r.to).find(x => x.sid === sid), v = a ? a.pts : 0; return { best: v, cur: v }; }
+    const V = dayVals(c, sid, D); if (!n.consec) { const v = Object.values(V).reduce((a, b) => a + b, 0); return { best: v, cur: v }; }
+    const t = SL.dkey(), end = r.to < t ? r.to : t; let run = 0, best = 0;
+    for (let d = SL.fromKey(r.from), k = r.from; k <= end; d = SL.addDays(d, 1), k = SL.dkey(d)) { if (V[k] > 0) { run++; if (run > best) best = run; } else if (k === t && k <= end) { /* اليوم لم ينتهِ بعد: لا يقطع السلسلة */ } else run = 0; }
+    return { best, cur: run };
+  };
+  const progress = (c, sid, D) => progressX(c, sid, D).best;
   const X = { d: {}, a: {}, w: {}, from: '', t: 0, busy: false };
   const data = () => ({ days: Object.assign({}, X.d, SL.allDays()), acts: Object.assign({}, X.a, SL.allActs()), wirds: Object.assign({}, X.w, SL.allWird()) });
   // تحدٍّ أطول من نافذة البيانات العادية: الإدارة تجلب الأيام الأقدم عند الطلب
@@ -36,7 +56,7 @@
     const from = chs.map(c => c.from).sort()[0]; if (from >= SL.rangeFrom() || (X.from === from && Date.now() - X.t < 120000)) return;
     X.busy = true; try { const db = SL.fs(), q = c => db.collection(c).where('date', '>=', from), [a, b, c] = await Promise.all([SL.getOnce(q('days')), SL.getOnce(q('acts')), SL.getOnce(q('wirdDone'))]); X.d = SL.snapMap(a); X.a = SL.snapMap(b); X.w = SL.snapMap(c); X.from = from; X.t = Date.now(); if (SL.tab === 'admin' && SL.aTab === 'chal') SL.render(true); } catch (e) { X.t = Date.now(); X.from = from; } X.busy = false;
   };
-  const completions = (c, D) => { const out = []; for (const id in D.acts) { const d = D.acts[id], e = d && d.z && d.z['c_' + c.id]; if (e && e.done) out.push({ sid: d.sid, name: d.name, ts: e.done }); } const seen = {}; return out.sort((a, b) => a.ts - b.ts).filter(x => seen[x.sid] ? false : (seen[x.sid] = 1)); };
+  const completions = (c, D) => { const out = []; for (const id in D.acts) { const d = D.acts[id], e = d && d.z && d.z['c_' + c.id]; if (e && e.done && (e.rev || 0) === (c.rev || 0)) out.push({ sid: d.sid, name: d.name, ts: e.done }); } const seen = {}; return out.sort((a, b) => a.ts - b.ts).filter(x => seen[x.sid] ? false : (seen[x.sid] = 1)); };
   const medal = i => ['🥇', '🥈', '🥉'][i] || '✓';
 
   // الطالب: تسجيل إنجاز التحدي تلقائياً وإبلاغ الإدارة (عبر acts)
@@ -45,18 +65,18 @@
     items('challenge').filter(c => c.show !== false && c.from && chStatus(c) !== 'soon').forEach(c => {
       const done = completions(c, D).some(x => x.sid === SL.me.sid); if (done) return;
       if (progress(c, SL.me.sid, D) >= (+c.target || 1)) {
-        SL.actSet('c_' + c.id, { n: +c.target, g: +c.target, ts: Date.now(), done: Date.now(), title: c.title }); try { SL.sound.play('wird'); } catch (e) {}
+        SL.actSet('c_' + c.id, { n: +c.target, g: +c.target, ts: Date.now(), done: Date.now(), title: c.title, rev: c.rev || 0 }); try { SL.sound.play('wird'); } catch (e) {}
         ui.toast(`🎉 أنجزت تحدي «${c.title}»! تم إبلاغ الإدارة`, 6000); SL._chalJustDone = c.id;
       }
     });
   };
   const chCard = c => {
-    const me = SL.me, D = data(), st = chStatus(c), r = chRange(c), t = Math.max(1, +c.target || 1), p = Math.min(t, progress(c, me.sid, D)), done = completions(c, D).some(x => x.sid === me.sid) || p >= t;
-    const left = Math.max(0, Math.round((SL.fromKey(r.to) - SL.fromKey(SL.dkey())) / 864e5) + 1), M = METRICS[c.metric] || ['🎯', ''];
+    const me = SL.me, D = data(), st = chStatus(c), r = chRange(c), t = Math.max(1, +c.target || 1), PX = progressX(c, me.sid, D), p = Math.min(t, PX.best), done = completions(c, D).some(x => x.sid === me.sid) || p >= t;
+    const left = Math.max(0, Math.round((SL.fromKey(r.to) - SL.fromKey(SL.dkey())) / 864e5) + 1), M = METRICS[norm(c).m] || ['🎯', ''];
     return `<div class="card chal"><div class="row" style="margin-bottom:6px"><h3 class="grow" style="margin:0">🎯 ${E(c.title)}</h3>${done ? '<span class="badge ok">✓ أنجزت</span>' : st === 'soon' ? '<span class="badge">قريباً</span>' : st === 'over' ? '<span class="badge bad">انتهى</span>' : `<span class="badge acc">باقي ${N(left)} ${left === 1 ? 'يوم' : left === 2 ? 'يومان' : 'أيام'}</span>`}</div>
       ${c.text ? `<div class="small" style="white-space:pre-wrap;line-height:1.8;margin-bottom:8px">${E(c.text)}</div>` : ''}
-      <div class="small muted" style="margin-bottom:6px">${M[0]} الهدف: ${N(t)} ${E(M[1])} · من ${SL.fmtShort(r.from)} إلى ${SL.fmtShort(r.to)}</div>
-      <div class="bar"><i style="width:${Math.round(p / t * 100)}%"></i></div><div class="small" style="margin-top:6px"><b class="num">${N(p)}/${N(t)}</b>${c.prize ? ` · 🎁 الجائزة: <b>${E(c.prize)}</b>` : ''}</div>
+      <div class="small muted" style="margin-bottom:6px">${M[0]} الشرط: <b>${E(ruleText(c))}</b> · من ${SL.fmtShort(r.from)} إلى ${SL.fmtShort(r.to)}</div>
+      <div class="bar"><i style="width:${Math.round(p / t * 100)}%"></i></div><div class="small" style="margin-top:6px"><b class="num">${N(p)}/${N(t)}</b>${norm(c).consec ? ` <span class="muted">(السلسلة الحالية ${N(PX.cur)} يوم)</span>` : ''}${c.prize ? ` · 🎁 الجائزة: <b>${E(c.prize)}</b>` : ''}</div>
       ${done ? '<button class="btn sec block" style="margin-top:10px" data-act="shareCard" data-k="chal" data-i="' + E(c.id) + '">🖼️ شارك إنجازك</button>' : ''}</div>`;
   };
 
@@ -162,26 +182,44 @@
   const today = () => SL.dkey();
   const tChal = () => {
     const D = data(), us = students(), list = items('challenge').sort((a, b) => (b.ts || 0) - (a.ts || 0));
-    const mopts = Object.keys(METRICS).map(k => `<option value="${k}">${METRICS[k][0]} ${METRICS[k][1]}</option>`).join('');
-    return `<div class="card"><h2 style="margin:0 0 10px;font-size:18px">🎯 تحدٍّ جديد</h2><div class="col">
-      <input type="text" id="cTitle" placeholder="عنوان التحدي (مثال: تحدي الفجر في المسجد)" maxlength="80">
-      <textarea id="cText" placeholder="التفاصيل والشروط…" style="min-height:70px"></textarea>
+    const ed = SL.chEdit ? items('challenge').find(x => x.id === SL.chEdit) : null, en = ed ? norm(ed) : { m: 'prayer', pr: 'fajr', pl: 'mosque', consec: true };
+    const so = (o, v) => Object.keys(o).map(k => `<option value="${k}" ${k === v ? 'selected' : ''}>${o[k]}</option>`).join('');
+    const mopts = Object.keys(METRICS).map(k => `<option value="${k}" ${k === en.m ? 'selected' : ''}>${METRICS[k][0]} ${METRICS[k][1]}</option>`).join('');
+    return `<div class="card"><h2 style="margin:0 0 10px;font-size:18px">${ed ? '✏️ تعديل التحدي' : '🎯 تحدٍّ جديد'}</h2><div class="col">
+      <input type="text" id="cTitle" placeholder="عنوان التحدي (مثال: أشبال الفجر — ٤٠ يوماً)" maxlength="80" value="${ed ? E(ed.title) : ''}">
+      <textarea id="cText" placeholder="وصف يظهر للطلاب (الشروط الفعلية تحددها الخيارات تحت)" style="min-height:70px">${ed ? E(ed.text || '') : ''}</textarea>
       <label class="f">نوع الهدف<select id="cMetric">${mopts}</select></label>
-      <div class="row"><label class="f grow">العدد المطلوب<input type="number" id="cTarget" value="5" min="1" max="1000" inputmode="numeric"></label><label class="f grow">المدة (أيام)<input type="number" id="cDays" value="7" min="1" max="365" inputmode="numeric"></label></div>
-      <label class="f">يبدأ في<input type="date" id="cFrom" value="${today()}"></label>
-      <input type="text" id="cPrize" placeholder="الجائزة (اختياري)" maxlength="80">
-      <button class="btn" data-act="chalPub">نشر التحدي</button><div class="hint">أنت تحدد عدد الأيام. التطبيق يتابع تقدّم كل طالب تلقائياً ويبلغك لحظة إنجازه.</div></div></div>
-    ${list.length ? list.map(c => { const done = completions(c, D), st = chStatus(c), r = chRange(c), t = Math.max(1, +c.target || 1), M = METRICS[c.metric] || ['🎯', '']; const rows = us.map(u => ({ u, p: progress(c, u.sid, D) })).sort((a, b) => b.p - a.p);
+      <div id="cPrayBox" class="col" style="display:${en.m === 'prayer' ? 'flex' : 'none'}"><div class="row"><label class="f grow">أي صلاة؟<select id="cPr">${so({ fajr: 'الفجر', dhuhr: 'الظهر', asr: 'العصر', maghrib: 'المغرب', isha: 'العشاء', all: 'الخمس صلوات كاملة في اليوم', any: 'أي صلاة (تُعدّ كل صلاة)' }, en.pr)}</select></label><label class="f grow">أين؟<select id="cPlace">${so({ any: 'أي مكان', mosque: 'في المسجد فقط', home: 'في البيت فقط' }, en.pl)}</select></label></div></div>
+      <label class="setrow" style="cursor:pointer"><span>متتالي (لازم أيام ورا بعض بدون انقطاع)</span><label class="switch"><input type="checkbox" id="cConsec" ${en.consec ? 'checked' : ''}><i></i></label></label>
+      <div class="row"><label class="f grow">العدد المطلوب<input type="number" id="cTarget" value="${ed ? +ed.target : 40}" min="1" max="1000" inputmode="numeric"></label><label class="f grow">المدة (أيام)<input type="number" id="cDays" value="${ed ? +ed.days : 40}" min="1" max="365" inputmode="numeric"></label></div>
+      <label class="f">يبدأ في<input type="date" id="cFrom" value="${ed ? E(ed.from) : today()}"></label>
+      <input type="text" id="cPrize" placeholder="الجائزة (اختياري)" maxlength="80" value="${ed ? E(ed.prize || '') : ''}">
+      <div class="duaitem" id="cRule" style="font-size:16px"></div>
+      <button class="btn" data-act="chalPub">${ed ? 'حفظ التعديل' : 'نشر التحدي'}</button>${ed ? '<button class="btn sec" data-act="chalCancel">إلغاء التعديل</button>' : ''}
+      <div class="hint">«المتتالي» يحسب أطول سلسلة أيام بدون انقطاع داخل مدة التحدي. التطبيق يتابع كل طالب تلقائياً ويبلغك لحظة إنجازه. تعديل الشروط يعيد احتساب الإنجازات من جديد.</div></div></div>
+    ${list.length ? list.map(c => { const done = completions(c, D), st = chStatus(c), r = chRange(c), t = Math.max(1, +c.target || 1), M = METRICS[norm(c).m] || ['🎯', '']; const rows = us.map(u => ({ u, p: progress(c, u.sid, D) })).sort((a, b) => b.p - a.p);
       return `<div class="card"><div class="row"><h3 class="grow" style="margin:0">🎯 ${E(c.title)}</h3><span class="badge ${st === 'on' ? 'acc' : ''}">${st === 'on' ? 'جاري' : st === 'soon' ? 'قادم' : 'انتهى'}</span></div>
-      <div class="small muted" style="margin:6px 0">${M[0]} ${N(t)} ${E(M[1])} · ${SL.fmtShort(r.from)} – ${SL.fmtShort(r.to)}${c.prize ? ' · 🎁 ' + E(c.prize) : ''}</div>
+      <div class="small muted" style="margin:6px 0">${M[0]} <b>${E(ruleText(c))}</b>${c.text ? '<br>' + E(c.text) : ''}<br>${SL.fmtShort(r.from)} – ${SL.fmtShort(r.to)}${c.prize ? ' · 🎁 ' + E(c.prize) : ''}</div>
       <div class="hint" style="margin:8px 0 4px"><b>أنجزوا التحدي (${N(done.length)} من ${N(us.length)})</b></div>${done.length ? done.map((x, i) => `<div class="setrow"><span>${medal(i)} ${E(x.name)}</span><span class="muted small num">${SL.fmtShort(SL.dkey(new Date(x.ts)))} ${SL.fmtTime(x.ts)}</span></div>`).join('') : '<div class="muted small">لم ينجزه أحد بعد.</div>'}
       <div class="hint" style="margin:10px 0 4px"><b>تقدّم الطلاب</b></div><div class="scroll"><table class="tbl"><tbody>${rows.map(r2 => `<tr><td>${E(r2.u.name)}</td><td style="width:45%"><div class="bar"><i style="width:${Math.min(100, Math.round(r2.p / t * 100))}%"></i></div></td><td class="num">${N(Math.min(r2.p, t))}/${N(t)}</td></tr>`).join('')}</tbody></table></div>
-      <div class="row" style="margin-top:10px"><button class="btn sm sec" data-act="chalToggle" data-i="${E(c.id)}" data-v="${c.show === false ? 1 : 0}">${c.show === false ? 'إظهار' : 'إخفاء'}</button><button class="btn sm bad" data-act="itemDel" data-i="${E(c.id)}">حذف</button></div></div>`; }).join('') : '<div class="card"><div class="empty">لا توجد تحديات بعد.</div></div>'}`;
+      <div class="row" style="margin-top:10px"><button class="btn sm sec" data-act="chalToggle" data-i="${E(c.id)}" data-v="${c.show === false ? 1 : 0}">${c.show === false ? 'إظهار' : 'إخفاء'}</button><button class="btn sm" data-act="chalEdit" data-i="${E(c.id)}">✏️ تعديل</button><button class="btn sm bad" data-act="itemDel" data-i="${E(c.id)}">حذف</button></div></div>`; }).join('') : '<div class="card"><div class="empty">لا توجد تحديات بعد.</div></div>'}`;
   };
+  const readForm = () => ({ title: val('cTitle'), text: val('cText'), metric: val('cMetric') || 'prayer', pr: val('cPr') || 'any', place: val('cPlace') || 'any', consec: !!($('#cConsec') || {}).checked, target: Math.max(1, parseInt(SL.latinDigits(val('cTarget'))) || 1), days: Math.max(1, Math.min(365, parseInt(SL.latinDigits(val('cDays'))) || 7)), from: val('cFrom') || today(), prize: val('cPrize') });
+  const paintRule = () => { const r = $('#cRule'); if (!r) return; const f = readForm(); const box = $('#cPrayBox'); if (box) box.style.display = f.metric === 'prayer' ? 'flex' : 'none'; const cs = $('#cConsec'); if (cs) { cs.disabled = f.metric === 'points'; } r.textContent = '📌 الشرط المطبَّق: ' + ruleText(f) + ' — خلال ' + f.days + ' يوم من ' + f.from; };
+  document.addEventListener('input', e => { if (e.target.closest && e.target.closest('#cTitle,#cText,#cTarget,#cDays,#cFrom,#cPrize,#cMetric,#cPr,#cPlace')) paintRule(); });
+  document.addEventListener('change', e => { if (e.target.id && /^c(Metric|Pr|Place|Consec|Target|Days|From)$/.test(e.target.id)) paintRule(); });
+  setInterval(() => { if ($('#cRule') && !$('#cRule').textContent) paintRule(); }, 400);
+  SL.act.chalEdit = el => { SL.chEdit = el.dataset.i; SL.render(true); window.scrollTo(0, 0); };
+  SL.act.chalCancel = () => { SL.chEdit = null; SL.render(true); };
   SL.act.chalPub = () => {
-    const title = val('cTitle'); if (!title) return ui.toast('اكتب عنوان التحدي');
-    const c = { kind: 'challenge', title, text: val('cText'), metric: val('cMetric') || 'prayers', target: Math.max(1, parseInt(SL.latinDigits(val('cTarget'))) || 5), days: Math.max(1, Math.min(365, parseInt(SL.latinDigits(val('cDays'))) || 7)), from: val('cFrom') || today(), prize: val('cPrize'), show: true, by: SL.me.name, ts: Date.now() };
-    const id = SL.uid(); SL.queue('dhikr', id, c, { merge: false }); SL.cache.dhikr = [Object.assign({ id }, c)].concat(SL.cache.dhikr || []); ui.toast('تم نشر التحدي ✓ — ظهر لكل الطلاب'); SL.render(true);
+    const f = readForm(); if (!f.title) return ui.toast('اكتب عنوان التحدي'); if (f.metric === 'points') f.consec = false;
+    const ed = SL.chEdit && items('challenge').find(x => x.id === SL.chEdit);
+    if (ed) {
+      const n0 = norm(ed), changed = n0.m !== f.metric || n0.pr !== f.pr || n0.pl !== f.place || n0.consec !== f.consec || +ed.target !== f.target || +ed.days !== f.days || ed.from !== f.from;
+      const upd = Object.assign({}, f, { rev: (ed.rev || 0) + (changed ? 1 : 0), upd: Date.now() }); SL.queue('dhikr', ed.id, upd); Object.assign(ed, upd); SL.chEdit = null;
+      ui.toast(changed ? 'تم حفظ التعديل ✓ — أُعيد احتساب الإنجازات' : 'تم حفظ التعديل ✓'); return SL.render(true);
+    }
+    const c = Object.assign({ kind: 'challenge', show: true, by: SL.me.name, ts: Date.now() }, f), id = SL.uid(); SL.queue('dhikr', id, c, { merge: false }); SL.cache.dhikr = [Object.assign({ id }, c)].concat(SL.cache.dhikr || []); ui.toast('تم نشر التحدي ✓ — ظهر لكل الطلاب'); SL.render(true);
   };
   SL.act.chalToggle = el => { const show = el.dataset.v === '1'; SL.queue('dhikr', el.dataset.i, { show }); const x = (SL.cache.dhikr || []).find(y => y.id === el.dataset.i); if (x) x.show = show; SL.render(true); };
   SL.act.itemDel = async el => { if (!await ui.confirm('حذف نهائياً؟', 'حذف', true)) return; SL.queueDelete('dhikr', el.dataset.i); SL.cache.dhikr = (SL.cache.dhikr || []).filter(y => y.id !== el.dataset.i); SL.render(true); };
