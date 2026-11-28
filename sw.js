@@ -1,8 +1,8 @@
 /* صلاتي — Service Worker: يخزّن التطبيق كاملاً ليعمل بدون إنترنت */
-const VER = 'salaty-v1.7.0';
+const VER = 'salaty-v1.9.0';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './style.css',
-  './config.js', './duas.js', './core.js', './sync.js', './app.js', './admin.js', './mushaf.js', './extras.js', './quran.js', './boot.js',
+  './config.js', './duas.js', './core.js', './sync.js', './app.js', './admin.js', './mushaf.js', './extras.js', './amal.js', './videos.js', './adhkar2.js', './firebase-storage-compat.js', './quran.js', './boot.js',
   './firebase-app-compat.js', './firebase-auth-compat.js', './firebase-firestore-compat.js',
   './tajawal-arabic-400-normal.woff2', './tajawal-arabic-500-normal.woff2', './tajawal-arabic-700-normal.woff2',
   './amiri-quran-arabic-400-normal.woff2', './amiri-arabic-400-normal.woff2', './amiri-arabic-700-normal.woff2',

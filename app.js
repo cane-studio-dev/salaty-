@@ -85,7 +85,7 @@
   };
   const shell = () => {
     const staff = isStaff(), nav = staff ? NAV_STAFF : NAV_STUDENT;
-    if (!nav.some(n => n[0] === SL.tab) && SL.tab !== 'messages') SL.tab = nav[0][0];
+    if (!nav.some(n => n[0] === SL.tab) && SL.tab !== 'messages' && !(SL.tab === 'videos' && !staff)) SL.tab = nav[0][0];
     const un = unreadCount();
     root.innerHTML = `
       ${SL.demo ? '<div class="preview-bar"><span>👁️ وضع المعاينة — هكذا يرى الطالب التطبيق</span><button class="btn sm sec" data-act="exitPreview">خروج</button></div>' : ''}
@@ -205,7 +205,7 @@
         <div class="sub">أتممت اليوم <b>${N(doneN)}</b> من ٥ صلوات</div></div>
       ${installCard()}${heroCards(allDays(), true)}
       <div class="plist">${states.map(prayerRow).join('')}</div>
-      ${SL.extrasHome ? SL.extrasHome() : ''}${SL.mushafCard ? SL.mushafCard() : ''}${dhikrBoard()}${sduaCards()}${quranCard()}
+      ${SL.extrasHome ? SL.extrasHome() : ''}${SL.amalHome ? SL.amalHome() : ''}${SL.videosHome ? SL.videosHome() : ''}${SL.mushafCard ? SL.mushafCard() : ''}${dhikrBoard()}${sduaCards()}${quranCard()}
       <div class="card"><div class="row"><h3 class="grow">📖 ورد اليوم</h3>${wdone ? '<span class="badge ok">✓ أتممته</span>' : wird ? '<span class="badge acc">جديد</span>' : ''}</div>
         ${wird ? `<div class="muted small" style="margin-bottom:8px">${E(wird.title || '')}</div><button class="btn block ${wdone ? 'sec' : ''}" data-act="tab" data-t="wird">${wdone ? 'عرض الورد' : 'اقرأ الورد وسجّل إتمامه'}</button>` : '<div class="empty" style="padding:6px">لم تنشر الإدارة ورد اليوم بعد.</div>'}</div>
       ${(SL.cache.ann || []).filter(a => a.kind !== 'honor' && a.show !== false).slice(0, 8).map(a => { const k = POST_KINDS[a.kind] || POST_KINDS.announce, hd = a.kind === 'hadith'; return `<div class="card post-${a.kind || 'announce'}"><div class="row"><h3 class="grow">${k[0]} ${E(a.title || k[1])}</h3><span class="badge">${k[1]}</span></div><div style="${hd ? "font-family:'Amiri Quran','Amiri',serif;font-size:22px;line-height:2.1;text-align:center;padding:6px 4px" : 'line-height:1.9'};white-space:pre-wrap">${E(a.text)}</div>${a.src ? `<div class="small muted" style="margin-top:6px;text-align:center">${E(a.src)}</div>` : ''}${a.img ? `<img class="annimg" src="${a.img}" alt="" data-act="annZoom" data-i="${E(a.id)}">` : ''}<div class="small muted" style="margin-top:8px">${SL.fmtShort(SL.dkey(new Date(a.ts)))}</div></div>`; }).join('')}
@@ -220,7 +220,7 @@
     const st = SL.prayerStates(now, getDays()[SL.dkey(new Date(now))] || {}).find(s => s.id === pid);
     if (!st || st.st !== 'open') { ui.toast('أُغلق تسجيل هذه الصلاة'); render(); return; }
     SL.sound.unlock();
-    ui.sheet(`<h2 style="margin:0 0 4px;text-align:center">${st.icon} صلاة ${st.name}</h2><p class="muted center" style="margin:0 0 16px">أين صلّيتها؟ تقبّل الله منك</p>
+    ui.sheet(`<h2 style="margin:0 0 4px;text-align:center">${st.icon} صلاة ${st.name}</h2><p class="muted center" style="margin:0 0 8px">أين صلّيتها؟ تقبّل الله منك</p><div class="small muted center" style="line-height:1.8;margin:0 0 14px">${E(SL.prayerVirtue ? SL.prayerVirtue(pid) : '')}</div>
       <div class="where"><button data-act="prayWhere" data-p="${pid}" data-w="mosque"><span>🕌</span>في المسجد</button><button data-act="prayWhere" data-p="${pid}" data-w="home"><span>🏠</span>في البيت</button></div>`, { mid: true });
   };
   SL.act.prayWhere = el => {
@@ -278,19 +278,19 @@
 
   SL.allDays = allDays; SL.allActs = allActs; SL.allWird = allWird;
   const DHIKR_DEFAULT = [
-    { id: 'd1', title: 'سبحان الله وبحمده', g: 100, icon: '📿' },
-    { id: 'd2', title: 'أستغفر الله العظيم وأتوب إليه', g: 100, icon: '🤲' },
-    { id: 'd3', title: 'اللهم صلِّ وسلِّم على نبينا محمد ﷺ', g: 100, icon: '💚' },
-    { id: 'd4', title: 'لا إله إلا الله وحده لا شريك له', g: 100, icon: '✨' },
-    { id: 'd5', title: 'لا حول ولا قوة إلا بالله', g: 100, icon: '🌿' }
+    { id: 'd1', title: 'سبحان الله وبحمده', g: 100, icon: '📿', v: '«كلمتان خفيفتان على اللسان، ثقيلتان في الميزان: سبحان الله وبحمده، سبحان الله العظيم» — متفق عليه' },
+    { id: 'd2', title: 'أستغفر الله العظيم وأتوب إليه', g: 100, icon: '🤲', v: '«من لزم الاستغفار جعل الله له من كل همٍّ فرجاً ومن كل ضيقٍ مخرجاً» — رواه أبو داود' },
+    { id: 'd3', title: 'اللهم صلِّ وسلِّم على نبينا محمد ﷺ', g: 100, icon: '💚', v: '«من صلى عليّ صلاة صلى الله عليه بها عشراً» — رواه مسلم' },
+    { id: 'd4', title: 'لا إله إلا الله وحده لا شريك له', g: 100, icon: '✨', v: '«أفضل ما قلتُ أنا والنبيون من قبلي: لا إله إلا الله وحده لا شريك له» — رواه الترمذي' },
+    { id: 'd5', title: 'لا حول ولا قوة إلا بالله', g: 100, icon: '🌿', v: '«لا حول ولا قوة إلا بالله كنز من كنوز الجنة» — متفق عليه' }
   ];
   SL.dhikrTasks = () => {
-    const staff = (SL.cache.dhikr || []).filter(x => x.kind === 'dhikr' && x.show !== false && x.title).map(x => ({ id: x.id, title: x.title, text: x.text || '', g: Math.max(1, +x.target || 33), icon: '⭐', staff: true }));
+    const staff = (SL.cache.dhikr || []).filter(x => x.kind === 'dhikr' && x.show !== false && x.title).map(x => ({ id: x.id, title: x.title, text: x.text || '', g: Math.max(1, +x.target || 33), icon: '⭐', staff: true, v: x.virtue || '' }));
     return (cs().showDefaultDhikr === false ? [] : DHIKR_DEFAULT).concat(staff);
   };
   const dhikrRow = t => {
     const e = SL.actGet()['t_' + t.id] || {}, n = e.n || 0, done = !!e.done, p = Math.min(100, Math.round(n / t.g * 100));
-    return `<div class="prow ${done ? 'done' : n ? 'prog' : ''}" data-act="dhikrOpen" data-id="${E(t.id)}" style="cursor:pointer"><div class="ic">${t.icon}</div><div class="grow"><div class="nm" style="font-size:15.5px;line-height:1.5">${E(t.title)}</div><div class="tm num">${N(Math.min(n, t.g))}/${N(t.g)}${t.staff ? ' · من الإدارة' : ''}</div><div class="bar"><i style="width:${p}%"></i></div></div><div class="go">${done ? `<span class="badge ok">✓ تم</span><div class="tm num">${SL.fmtTime(e.done)}</div>` : `<span class="badge acc">${n ? 'أكمل' : 'ابدأ'}</span>`}</div></div>`;
+    return `<div class="prow ${done ? 'done' : n ? 'prog' : ''}" data-act="dhikrOpen" data-id="${E(t.id)}" style="cursor:pointer"><div class="ic">${t.icon}</div><div class="grow"><div class="nm" style="font-size:15.5px;line-height:1.5">${E(t.title)}</div>${t.v ? `<div class="small muted" style="line-height:1.6">${E(t.v)}</div>` : ''}<div class="tm num">${N(Math.min(n, t.g))}/${N(t.g)}${t.staff ? ' · من الإدارة' : ''}</div><div class="bar"><i style="width:${p}%"></i></div></div><div class="go">${done ? `<span class="badge ok">✓ تم</span><div class="tm num">${SL.fmtTime(e.done)}</div>` : `<span class="badge acc">${n ? 'أكمل' : 'ابدأ'}</span>`}</div></div>`;
   };
   const dhikrBoard = (title = '📿 التسبيح والذكر') => {
     const ts = SL.dhikrTasks(); if (!ts.length) return '';
@@ -322,7 +322,7 @@
     const t = SL.dhikrTasks().find(x => x.id === el.dataset.id); if (!t) return; const key = 't_' + t.id; SL.sound.unlock();
     const cur = () => SL.actGet()[key] || { n: 0, g: t.g, ts: 0, done: 0, title: t.title };
     const paint = () => { const e = cur(); $('#tBtn').style.setProperty('--p', Math.min(100, e.n / t.g * 100) + '%'); $('#tN').textContent = N(e.n); $('#tSub').innerHTML = e.done ? `<span class="badge ok">✓ أتممت ${N(t.g)} — تقبّل الله</span>` : `المتبقي ${N(Math.max(0, t.g - e.n))}`; };
-    ui.sheet(`<div class="center"><div style="font-size:30px">${t.icon}</div><h2 style="margin:4px 0 2px;font-size:19px;line-height:1.6">${E(t.title)}</h2>${t.text ? `<div class="duaitem" style="margin:8px 0;text-align:center">${E(t.text)}</div>` : ''}
+    ui.sheet(`<div class="center"><div style="font-size:30px">${t.icon}</div><h2 style="margin:4px 0 2px;font-size:19px;line-height:1.6">${E(t.title)}</h2>${t.text ? `<div class="duaitem" style="margin:8px 0;text-align:center">${E(t.text)}</div>` : ''}${t.v ? `<div class="small muted" style="line-height:1.8;margin:6px 0 4px">✨ ${E(t.v)}</div>` : ''}
       <button class="tbtn" id="tBtn" aria-label="عدّ"><b id="tN">٠</b><small>/ ${N(t.g)}</small></button><div class="muted small" id="tSub" style="min-height:26px"></div>
       <div class="row" style="margin-top:12px"><button class="btn sec grow" id="tReset">تصفير</button><button class="btn grow" id="tClose">تم</button></div></div>`);
     SL._onClose = () => render(true); paint();
@@ -459,7 +459,8 @@
     return `<div class="card"><div class="row"><div style="font-size:36px">${isStaff() ? (SL.me.role === 'super' ? '👑' : '🎓') : '🙂'}</div><div class="grow"><div style="font-weight:700;font-size:18px">${E(me.name)}</div><div class="small muted">${isStaff() ? (SL.me.role === 'super' ? 'الإدارة العليا' : 'مدرس / مشرف') : 'طالب'} · <span class="num">${E(me.phone)}</span></div></div>${syncChip()}</div></div>
       <div class="card"><h3>🎨 المظهر</h3><div class="themes">${SL.THEMES.map(t => `<button data-act="setTheme" data-t="${t.id}" class="${s.theme === t.id ? 'on' : ''}"><i style="background:${t.c}"></i>${t.name}</button>`).join('')}</div>
         <div class="setrow" style="margin-top:8px"><span>تكبير الخط</span><label class="switch"><input type="checkbox" data-chg="big" ${s.big ? 'checked' : ''}><i></i></label></div>
-        <div class="setrow"><span>الأصوات التشجيعية 🔊</span><label class="switch"><input type="checkbox" data-chg="sound" ${s.mute ? '' : 'checked'}><i></i></label></div></div>
+        <div class="setrow"><span>الأصوات التشجيعية 🔊</span><label class="switch"><input type="checkbox" data-chg="sound" ${s.mute ? '' : 'checked'}><i></i></label></div>
+        <div class="setrow"><span class="small muted">لو ما سمعتش صوت: ارفع صوت الوسائط في الهاتف ثم جرّب</span><button class="btn sm sec" data-act="soundTest">▶ تجربة الصوت</button></div></div>
       <div class="card"><h3>🕋 المواقيت</h3><label class="f">المدينة<select data-chg="city">${SL.CITIES.map(c => `<option value="${c.id}" ${s.cityId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}${s.cityId === 'gps' ? '<option value="gps" selected>موقعي الحالي (GPS)</option>' : ''}</select></label>
         <button class="btn sec block" style="margin-top:10px" data-act="gps">📍 استخدم موقعي الحالي</button>
         <div class="hint" style="margin:10px 0 6px">ضبط يدوي بالدقائق ليطابق مسجدك (من −١٠ إلى +١٠):</div>
@@ -485,6 +486,7 @@
     ['me', 'days', 'wirdDone', 'outbox', 'cache', 'sent', 'msgSeen', 'adhkar', 'lastSeen', 'acts', 'duaIdx'].forEach(SL.del); sessionStorage.clear(); location.reload();
   };
   SL.act.preview = () => { SL.demo = true; SL._dd = {}; SL._wd = {}; SL.tab = 'home'; SL.stopListening(); shell(); window.scrollTo(0, 0); };
+  SL.act.soundTest = () => { SL.settings.mute = false; SL.saveSettings(); SL.sound.test(); ui.toast('🔊 لو سمعت التصفيق فالصوت شغال'); };
   SL.act.exitPreview = () => { SL.demo = false; SL.tab = 'admin'; shell(); SL.startListening(); };
 
   document.addEventListener('change', e => {

@@ -162,12 +162,14 @@ window.SL = window.SL || {};
   SL.actPts = (key, e) => {
     if (!e) return 0; const g = e.g || 1, n = e.n || 0, k = key.charAt(0);
     if (k === 't') return e.done ? 8 : Math.floor(8 * Math.min(1, n / g));
-    if (k === 'a') return e.done ? 6 : Math.floor(6 * Math.min(1, n / g));
+    if (k === 'a') { const m = /^a_(sabah|masaa|salah)$/.test(key) ? 6 : 2; return e.done ? m : Math.floor(m * Math.min(1, n / g)); }
     if (k === 'u') return Math.min(n, 5);
     if (k === 'q') return Math.min(n, 10);
     if (k === 'd') return e.done ? 4 : 0;
     if (k === 'k') return e.ok ? 5 : 1;
     if (k === 'c') return e.done ? 10 : 0;
+    if (k === 'v') return e.done ? 3 : 0;
+    if (k === 'y') return e.done ? (e.p || 2) : 0;
     return 0;
   };
   /** ترتيب شامل: الصلاة + التسبيح + الأذكار + الأدعية + الورد */
@@ -194,43 +196,51 @@ window.SL = window.SL || {};
     return best;
   };
 
-  /* ---------- الأصوات (Web Audio — بدون ملفات) ---------- */
-  let ctx = null;
-  const ac = () => { try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); } catch (e) {} return ctx; };
-  const tone = (f, t0, dur, type = 'triangle', vol = 0.18) => {
-    const c = ac(); if (!c) return; const o = c.createOscillator(), g = c.createGain();
-    o.type = type; o.frequency.value = f; o.connect(g); g.connect(c.destination);
-    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    o.start(t0); o.stop(t0 + dur + 0.05);
+  /* ---------- الأصوات: تُركَّب مرة وتُشغَّل كملفات WAV عبر عنصر audio (تعمل حتى مع كتم الرنين في الآيفون) ---------- */
+  const SR = 22050;
+  const tone = (c, f, t0, dur, type = 'triangle', vol = 0.3) => {
+    const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = f; o.connect(g); g.connect(c.destination);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.start(t0); o.stop(t0 + dur + 0.05);
   };
-  const applause = (t0, dur, vol = 0.22) => {
-    const c = ac(); if (!c) return;
+  const applause = (c, t0, dur, vol = 0.45) => {
     const len = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      const x = i / len, clap = Math.random() < 0.012 ? 1 : 0.18;
-      d[i] = (Math.random() * 2 - 1) * clap * Math.min(1, x * 12) * (1 - x * 0.85);
-    }
-    const s = c.createBufferSource(); s.buffer = buf;
-    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.6;
+    for (let i = 0; i < len; i++) { const x = i / len, clap = Math.random() < 0.012 ? 1 : 0.18; d[i] = (Math.random() * 2 - 1) * clap * Math.min(1, x * 12) * (1 - x * 0.85); }
+    const s = c.createBufferSource(); s.buffer = buf; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.6;
     const g = c.createGain(); g.gain.value = vol; s.connect(f); f.connect(g); g.connect(c.destination); s.start(t0);
   };
+  const SPEC = {
+    tap: { dur: 0.2, build: c => tone(c, 660, 0.01, 0.12, 'sine', 0.35) },
+    tick: { dur: 0.15, build: c => tone(c, 880, 0.01, 0.08, 'sine', 0.3) },
+    prayer: { dur: 2.2, build: c => { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(c, f, 0.02 + i * 0.09, 0.5, 'triangle', 0.5)); tone(c, 1318.5, 0.42, 0.7, 'sine', 0.3); applause(c, 0.12, 1.8); } },
+    wird: { dur: 1.9, build: c => { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(c, f, 0.02 + i * 0.09, 0.5, 'triangle', 0.5)); tone(c, 1318.5, 0.42, 0.7, 'sine', 0.3); applause(c, 0.12, 1.4); } }
+  };
+  const wav = buf => { const d = buf.getChannelData(0), n = d.length, b = new DataView(new ArrayBuffer(44 + n * 2)); const w = (o, t) => { for (let i = 0; i < t.length; i++) b.setUint8(o + i, t.charCodeAt(i)); };
+    w(0, 'RIFF'); b.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); b.setUint32(16, 16, true); b.setUint16(20, 1, true); b.setUint16(22, 1, true); b.setUint32(24, SR, true); b.setUint32(28, SR * 2, true); b.setUint16(32, 2, true); b.setUint16(34, 16, true); w(36, 'data'); b.setUint32(40, n * 2, true);
+    for (let i = 0; i < n; i++) { const x = Math.max(-1, Math.min(1, d[i])); b.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7fff, true); } return URL.createObjectURL(new Blob([b], { type: 'audio/wav' })); };
+  const urls = {}, pending = {};
+  const make = kind => urls[kind] ? Promise.resolve(urls[kind]) : pending[kind] || (pending[kind] = new Promise(res => {
+    try { const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext, sp = SPEC[kind], o = new OC(1, Math.ceil(SR * sp.dur), SR); sp.build(o); let done = false; const fin = b => { if (done) return; done = true; if (b) urls[kind] = wav(b); res(urls[kind] || null); };
+      o.oncomplete = e => fin(e.renderedBuffer); const p = o.startRendering(); if (p && p.then) p.then(fin).catch(() => fin(null)); } catch (e) { res(null); }
+  }));
+  const SIL = 'data:audio/wav;base64,UklGRogAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YWQAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
+  const el = { ui: null, big: null };
+  const getEl = k => el[k] || (el[k] = new Audio());
+  let ctx = null;
+  const ac = () => { try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); } catch (e) {} return ctx; };
   let arVoice = null;
   const pickVoice = () => { try { arVoice = (speechSynthesis.getVoices() || []).find(v => /^ar/i.test(v.lang)) || null; } catch (e) {} };
   try { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; } catch (e) {}
+  const fallback = kind => { const c = ac(); if (!c) return; const t = c.currentTime + 0.02; if (kind === 'tap') tone(c, 660, t, 0.1, 'sine', 0.25); else if (kind === 'tick') tone(c, 880, t, 0.06, 'sine', 0.2); else { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(c, f, t + i * 0.09, 0.45, 'triangle', 0.3)); applause(c, t + 0.1, 1.4, 0.3); } };
   SL.sound = {
     play(kind) {
-      if (SL.settings.mute) return; const c = ac(); if (!c) return; const t = c.currentTime + 0.02;
-      if (kind === 'tap') { tone(660, t, 0.08, 'sine', 0.08); return; }
-      if (kind === 'tick') { tone(880, t, 0.05, 'sine', 0.06); return; }
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, t + i * 0.09, 0.45, 'triangle', 0.16));
-      tone(1318.5, t + 0.4, 0.6, 'sine', 0.08);
-      applause(t + 0.1, kind === 'wird' ? 1.3 : 1.7);
-      setTimeout(() => {
-        try { if (arVoice && !SL.settings.mute) { const u = new SpeechSynthesisUtterance(kind === 'wird' ? 'ما شاء الله' : 'أحسنت'); u.voice = arVoice; u.lang = arVoice.lang; u.volume = 0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); } } catch (e) {}
-      }, 450);
+      if (SL.settings.mute) return; const big = kind !== 'tap' && kind !== 'tick', e = getEl(big ? 'big' : 'ui');
+      make(kind).then(u => { if (!u) return fallback(kind); try { e.src = u; e.volume = 1; const p = e.play(); if (p && p.catch) p.catch(() => fallback(kind)); } catch (x) { fallback(kind); } });
+      if (big) setTimeout(() => { try { if (arVoice && !SL.settings.mute) { const u = new SpeechSynthesisUtterance(kind === 'wird' ? 'ما شاء الله' : 'أحسنت'); u.voice = arVoice; u.lang = arVoice.lang; u.volume = 1; speechSynthesis.cancel(); speechSynthesis.speak(u); } } catch (x) {} }, 500);
     },
-    unlock() { ac(); }
+    unlock() { if (SL._su) return; SL._su = 1; ['ui', 'big'].forEach(k => { const e = getEl(k); try { e.src = SIL; const p = e.play(); if (p && p.catch) p.catch(() => { SL._su = 0; }); } catch (x) { SL._su = 0; } }); ac(); Object.keys(SPEC).forEach(make); },
+    test() { this.play('wird'); }
   };
+  ['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, () => SL.sound.unlock(), { once: false, passive: true, capture: true }));
 
   /* ---------- أحداث بسيطة ---------- */
   const H = {};
