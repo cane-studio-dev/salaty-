@@ -16,7 +16,7 @@
   const cell = (r, closed) => r ? `<span class="cell ${r.where === 'mosque' ? 'm' : 'h'}" title="${SL.fmtTime(r.ts)}">${r.where === 'mosque' ? 'م' : 'ب'}</span>` : `<span class="cell ${closed ? 'x' : 'n'}">${closed ? '✗' : '–'}</span>`;
   const noCloud = () => !SL.cloud.enabled ? '<div class="card empty">⚠️ لوحة الإدارة تحتاج ربط التطبيق بـ Firebase (راجع README).</div>' : '';
 
-  const TABS = () => { const t = [['students', '👥 متابعة الطلاب'], ['acts', '📿 التسبيح والأدعية'], ['wird', '📖 الورد'], ['posts', '📢 الإعلانات'], ['report', '🧾 التقرير الشهري']]; (SL.xTabs || []).forEach(x => t.push([x[0], x[1]])); if (SL.me.role === 'super') t.push(['super', '👑 الإدارة العليا']); return t; };
+  const TABS = () => { const t = [['students', '👥 متابعة الطلاب'], ['acts', '📿 التسبيح والأدعية'], ['wird', '📖 الورد'], ['posts', '📢 الإعلانات'], ['report', '🧾 التقرير الشهري']]; (SL.xTabs || []).forEach(x => { if (!x[3] || x[3]()) t.push([x[0], x[1]]); }); if (SL.me.role === 'super') t.push(['super', '👑 الإدارة العليا']); return t; };
 
   SL.pages.admin = () => {
     const tabs = `<div class="tabs">${TABS().map(t => `<button data-act="aTab" data-t="${t[0]}" class="${SL.aTab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>`;

@@ -128,7 +128,10 @@ ${APP_URL}
         <div style="padding-right:8px">🕌 <b>تحدي الفجر ٤٠ يوماً متواصلة</b> — في المسجد للأولاد، وفور الأذان للبنات، ولو وقع يوم نبدأ من الأول. التقييم: الفجر أساساً ومعه الورد والصلوات والذكر. جائزته الكبرى ٥٠٠ جنيه لمن يُتمه بالشروط، وهدايا متنوعة للملتزمين.</div>
         ${ch.length ? `<div class="hint" style="margin:8px 0 2px">تحديات قائمة الآن</div>${ch.map(x => `<div style="padding-right:8px">⭐ ${E(x.title)}${x.days ? ` <span class="muted small">(${N(x.days)} يوماً)</span>` : ''}</div>`).join('')}` : ''}
         <div class="hint" style="margin:10px 0 4px">📱 ميزات التطبيق</div>
-        ${FEATS.map(f => `<div style="display:flex;gap:8px;align-items:flex-start"><span>${f[0]}</span><span><b>${f[1]}</b> <span class="muted small">— ${f[2]}</span></span></div>`).join('')}</div>
+        ${FEATS.map(f => `<div style="display:flex;gap:8px;align-items:flex-start"><span>${f[0]}</span><span><b>${f[1]}</b> <span class="muted small">— ${f[2]}</span></span></div>`).join('')}
+        <div class="hint" style="margin:10px 0 4px">🤝 فريق العمل</div>
+        <div>صُمّم هذا التطبيق وطُوّر بجهد فريق عمل متكامل من مبادرة أشبال الفجر: فريق التقنية، وفريق المحتوى الشرعي والتربوي، وفريق المتابعة، والإدارة العليا. نسأل الله أن يتقبّل منا ومنكم.</div>
+        </div>
         <button class="btn sec block" style="margin-top:10px" data-act="aboutShare">📣 شارك المبادرة مع أصدقائك</button>` : ''}</div>`;
   };
   SL.act.aboutTog = () => { SL.aboutOpen = !SL.aboutOpen; SL.render(true); };
@@ -144,6 +147,34 @@ ${APP_URL}
     return sec('🌙 السنن والنوافل', s) + sec('🤝 الأعمال الصالحة', d) + sec('🛡️ محاسبة النفس', pp);
   };
   const students = () => (SL.cache.users || []).filter(u => u.role !== 'admin' && u.role !== 'super');
+
+  /* ---------- الإدارة العليا: تعديل الترتيب والنقاط ---------- */
+  const isSuper = () => !!SL.me && SL.me.role === 'super' && !SL.demo;
+  const cycleBoard = () => { const cr = SL.cycleRange(SL.cycleOf(new Date())), L = SL.aggregateAll(SL.allDays(), SL.allActs(), SL.allWird(), cr.from, cr.to), m = {}; L.forEach(x => m[x.sid] = x.pts); return { cr, rows: students().map(u => ({ u, pts: m[u.sid] || 0 })).sort((a, b) => b.pts - a.pts) }; };
+  const tRank = () => {
+    if (!isSuper()) return '<div class="card"><div class="empty">هذا القسم للإدارة العليا فقط.</div></div>';
+    const B = cycleBoard(), adj = (SL.cache.dhikr || []).filter(x => x.kind === 'adjust').sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 40);
+    return `<div class="card"><h2 style="margin:0 0 4px;font-size:18px">⚖️ الترتيب والنقاط</h2><div class="hint">الترتيب الحالي للدورة (${E(B.cr.from)} → ${E(B.cr.to)}). اضغط على أي طالب لإضافة نقاط أو خصمها أو ضبط مجموعه. التعديل يظهر في لوحة الشرف عند الجميع.</div>
+      <div class="scroll" style="margin-top:10px"><table class="tbl"><thead><tr><th>#</th><th>الطالب</th><th>النقاط</th></tr></thead><tbody>${B.rows.map((r, i) => `<tr data-act="adjOpen" data-s="${E(r.u.sid)}" style="cursor:pointer"><td class="num">${N(i + 1)}</td><td>${E(r.u.name)}</td><td class="num"><b>${N(r.pts)}</b> ✏️</td></tr>`).join('') || '<tr><td colspan="3" class="empty">لا يوجد طلاب</td></tr>'}</tbody></table></div></div>
+      <div class="card"><h3>سجل التعديلات (${N(adj.length)})</h3><div class="col">${adj.length ? adj.map(x => `<div class="msg"><div class="meta"><b>${E(x.name || '')}</b><span class="num" style="color:var(${+x.pts >= 0 ? '--ok' : '--bad'},inherit)">${+x.pts > 0 ? '+' : ''}${N(x.pts)}</span></div>${x.note ? `<div class="small muted">${E(x.note)}</div>` : ''}<div class="small muted">${E(x.date || '')} · الإدارة العليا</div><button class="btn sm bad" style="margin-top:6px" data-act="adjDel" data-i="${E(x.id)}">تراجع عن التعديل</button></div>`).join('') : '<div class="empty">لم تُجرِ أي تعديل بعد.</div>'}</div></div>`;
+  };
+  SL.act.adjOpen = el => {
+    if (!isSuper()) return; const u = students().find(x => x.sid === el.dataset.s); if (!u) return; const cur = (cycleBoard().rows.find(r => r.u.sid === u.sid) || {}).pts || 0;
+    SL._adj = { sid: u.sid, name: u.name, cur, mode: 'add' };
+    ui.sheet(`<h2 style="margin:0 0 4px">${E(u.name)}</h2><p class="muted" style="margin:0 0 10px">نقاطه الآن في الدورة: <b class="num">${N(cur)}</b></p><div class="col">
+      <div class="seg" id="adjMode"><button data-act="adjMode" data-m="add" class="on">➕ إضافة</button><button data-act="adjMode" data-m="sub">➖ خصم</button><button data-act="adjMode" data-m="set">🎯 ضبط إلى</button></div>
+      <input type="number" id="adjN" inputmode="numeric" min="0" placeholder="عدد النقاط">
+      <input type="text" id="adjNote" placeholder="السبب (اختياري، مثال: مكافأة تفوّق)" maxlength="80">
+      <button class="btn" data-act="adjApply">تطبيق</button></div>`);
+  };
+  SL.act.adjMode = el => { SL._adj.mode = el.dataset.m; document.querySelectorAll('#adjMode button').forEach(b => b.classList.toggle('on', b === el)); };
+  SL.act.adjApply = () => {
+    if (!isSuper() || !SL._adj) return; const A = SL._adj, v = parseInt(val('adjN'), 10); if (isNaN(v) || v < 0) return ui.toast('اكتب رقماً صحيحاً');
+    let d = A.mode === 'add' ? v : A.mode === 'sub' ? -v : v - A.cur; if (!d) return ui.toast('لا يوجد تغيير');
+    const x = { kind: 'adjust', sid: A.sid, name: A.name, pts: d, note: val('adjNote') || (A.mode === 'set' ? 'ضبط المجموع إلى ' + v : ''), date: SL.dkey(), by: 'الإدارة العليا', ts: Date.now(), show: false }, id = SL.uid();
+    SL.queue('dhikr', id, x, { merge: false }); SL.cache.dhikr = [Object.assign({ id }, x)].concat(SL.cache.dhikr || []); SL._adj = null; ui.close(); ui.toast('تم تعديل النقاط ✓'); SL.render(true);
+  };
+  SL.act.adjDel = el => { if (!isSuper() || !confirm('التراجع عن هذا التعديل؟')) return; SL.queueDelete('dhikr', el.dataset.i); SL.cache.dhikr = (SL.cache.dhikr || []).filter(x => x.id !== el.dataset.i); SL.render(true); };
   const tAmal = () => {
     const us = students(), t = SL.dkey(), acts = SL.allActs(), cu = (SL.cache.dhikr || []).filter(x => x.kind === 'deed');
     const cnt = (u, g) => { const z = (acts[`${u.sid}_${t}`] || {}).z || {}; return list(g).filter(x => (z['y_' + x.id] || {}).done).length; };
@@ -163,4 +194,5 @@ ${APP_URL}
   };
   SL.act.amalToggle = el => { const show = el.dataset.v === '1'; SL.queue('dhikr', el.dataset.i, { show }); const x = (SL.cache.dhikr || []).find(y => y.id === el.dataset.i); if (x) x.show = show; SL.render(true); };
   (SL.xTabs = SL.xTabs || []).push(['amal', '🌙 السنن والأعمال', tAmal]);
+  SL.xTabs.push(['rank', '⚖️ الترتيب والنقاط', tRank, isSuper]);
 })(window.SL);

@@ -98,7 +98,7 @@
         </header>
         <main id="page"></main>
         <nav class="bottom"><div class="row">${nav.map(n => `<button data-act="tab" data-t="${n[0]}" class="${SL.tab === n[0] ? 'on' : ''}"><span class="i">${n[1]}</span>${n[2]}${n[0] === 'messages' && un ? `<span class="dot">${N(un)}</span>` : ''}</button>`).join('')}</div>
-          <div class="sig"><span>MARWAN DEV</span></div></nav>
+          <div class="sig"><span class="ar">فريق عمل مبادرة أشبال الفجر</span></div></nav>
       </div>`;
     render();
   };
@@ -456,7 +456,7 @@
   /* ---------- الإعدادات ---------- */
   SL.pages.settings = () => {
     const s = SL.settings, me = meEff(), loc = SL.location();
-    return `<div class="card"><div class="row"><div style="font-size:36px">${isStaff() ? (SL.me.role === 'super' ? '👑' : '🎓') : '🙂'}</div><div class="grow"><div style="font-weight:700;font-size:18px">${E(me.name)}</div><div class="small muted">${isStaff() ? (SL.me.role === 'super' ? 'الإدارة العليا' : 'مدرس / مشرف') : 'طالب'} · <span class="num">${E(me.phone)}</span></div></div>${syncChip()}</div></div>
+    return `<div class="card"><div class="row"><div style="font-size:36px">${isStaff() ? (SL.me.role === 'super' ? '👑' : '🎓') : '🙂'}</div><div class="grow"><div style="font-weight:700;font-size:18px">${E(SL.me.role === 'super' ? 'الإدارة العليا' : me.name)}</div><div class="small muted">${isStaff() ? (SL.me.role === 'super' ? 'الإدارة العليا' : 'مدرس / مشرف') : 'طالب'} · <span class="num">${E(me.phone)}</span></div></div>${syncChip()}</div></div>
       <div class="card"><h3>🎨 المظهر</h3><div class="themes">${SL.THEMES.map(t => `<button data-act="setTheme" data-t="${t.id}" class="${s.theme === t.id ? 'on' : ''}"><i style="background:${t.c}"></i>${t.name}</button>`).join('')}</div>
         <div class="setrow" style="margin-top:8px"><span>تكبير الخط</span><label class="switch"><input type="checkbox" data-chg="big" ${s.big ? 'checked' : ''}><i></i></label></div>
         <div class="setrow"><span>الأصوات التشجيعية 🔊</span><label class="switch"><input type="checkbox" data-chg="sound" ${s.mute ? '' : 'checked'}><i></i></label></div>

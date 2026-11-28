@@ -337,3 +337,5 @@ nav.bottom button .dot{position:absolute;top:0;right:50%;margin-right:-22px;min-
 .vbox .vcov.b{bottom:0;right:46px;width:90px;height:44px}
 @keyframes vwmin{from{opacity:0;transform:translateY(-6px)}}
 @media (prefers-reduced-motion:reduce){.vwm{animation:none}}
+
+.sig span.ar{font-family:inherit;font-weight:600;font-size:11.5px;letter-spacing:0;direction:rtl;opacity:.8}

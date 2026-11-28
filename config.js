@@ -14,6 +14,5 @@ window.FIREBASE_CONFIG = {
 window.APP_CFG = {
   name: 'صلاتي',
   windowMin: 90,            // مدة إتاحة تسجيل كل صلاة بعد دخول وقتها (بالدقائق)
-  adminName: 'MARWAN DEV',  // اسم الحساب الرئيسي (Super Admin)
-  devUrl: 'https://cane-studio-dev.github.io/MARWAN-DEV/'
+  adminName: 'MARWAN DEV'  // كود دخول الإدارة العليا (لا يظهر في أي مكان بالواجهة)
 };

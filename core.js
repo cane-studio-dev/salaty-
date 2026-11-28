@@ -181,6 +181,7 @@ window.SL = window.SL || {};
       for (const k in (d.z || {})) { const e = d.z[k]; s.pts += SL.actPts(k, e); if (k[0] === 't' && e.done) s.dh++; if (k[0] === 'a' && e.done) s.ad++; if (k[0] === 'u') s.du += e.n || 0; if (k === 'q') s.qr += e.n || 0; }
     }
     for (const id in wirds) { const d = wirds[id]; if (!d || !d.date || d.date < from || d.date > to) continue; const s = mk(d.sid, d.name); s.wd++; s.pts += SL.WIRD_PTS; }
+    (SL.cache.dhikr || []).forEach(x => { if (x.kind === 'adjust' && x.sid && x.date >= from && x.date <= to) mk(x.sid, x.name).pts += +x.pts || 0; });
     return Object.values(m).sort((a, b) => b.pts - a.pts || b.cnt - a.cnt || a.first - b.first);
   };
   const EPOCH = new Date(2024, 0, 1);
