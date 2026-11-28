@@ -15,13 +15,22 @@
   const thumb = v => { const y = ytId(v.url); return y ? `<img src="https://i.ytimg.com/vi/${y}/mqdefault.jpg" alt="" loading="lazy" onerror="this.remove()">` : ''; };
   const kindIcon = v => ytId(v.url) ? '▶️' : isFile(v) ? '🎞️' : driveId(v.url) ? '📁' : '🔗';
 
+  const wrap = (inner, cov) => `<div class="vbox" oncontextmenu="return false">${inner}${cov ? '<div class="vcov t"></div><div class="vcov b"></div>' : ''}<div class="vwm"><img src="logo.svg" alt=""><span>صلاتي</span></div><button class="vfs" data-act="vidFs" aria-label="ملء الشاشة">⛶</button></div>`;
   const player = v => {
     const y = ytId(v.url), d = driveId(v.url), u = safeUrl(v.url);
-    if (y) return `<div class="vbox"><iframe src="https://www.youtube-nocookie.com/embed/${y}?rel=0&playsinline=1" allow="accelerometer; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>`;
-    if (d) return `<div class="vbox"><iframe src="https://drive.google.com/file/d/${d}/preview" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe></div>`;
-    if (isFile(v) && u) return `<video class="vplay" src="${E(u)}" controls playsinline preload="metadata"></video>`;
+    if (y) return wrap(`<iframe src="https://www.youtube-nocookie.com/embed/${y}?rel=0&playsinline=1&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0" allow="encrypted-media" loading="lazy" referrerpolicy="no-referrer"></iframe>`, true);
+    if (d) return wrap(`<iframe src="https://drive.google.com/file/d/${d}/preview" allow="autoplay" loading="lazy"></iframe>`);
+    if (isFile(v) && u) return wrap(`<video src="${E(u)}" controls controlsList="nofullscreen nodownload" disablepictureinpicture playsinline preload="metadata"></video>`);
     return u ? `<a class="btn block" href="${E(u)}" target="_blank" rel="noopener">فتح الرابط 🔗</a>` : '<div class="empty">الرابط غير صالح.</div>';
   };
+  SL.act.vidFs = el => {
+    const b = el.closest('.vbox'); if (!b) return;
+    if (b.classList.contains('full') || document.fullscreenElement) { b.classList.remove('full'); if (document.fullscreenElement) document.exitFullscreen(); return; }
+    const f = b.requestFullscreen || b.webkitRequestFullscreen;
+    if (f) { try { const r = f.call(b); if (r && r.catch) r.catch(() => b.classList.add('full')); return; } catch (e) { } }
+    b.classList.add('full');
+  };
+  document.addEventListener('fullscreenchange', () => { document.querySelectorAll('.vbox').forEach(x => x.classList.toggle('infs', x === document.fullscreenElement)); });
 
   const watched = id => !!(SL.actGet()['v_' + id] || {}).done;
   const row = v => `<div class="prow ${watched(v.id) ? 'done' : ''}" data-act="vidOpen" data-id="${E(v.id)}" style="cursor:pointer;align-items:center">${thumb(v) ? `<div class="vth">${thumb(v)}</div>` : `<div class="ic">${kindIcon(v)}</div>`}<div class="grow"><div class="nm" style="font-size:15.5px;line-height:1.5">${E(v.title)}</div><div class="tm">${E(v.cat || '')}${v.desc ? ' · ' + E(v.desc.slice(0, 50)) : ''}</div></div><span class="badge ${watched(v.id) ? 'ok' : 'acc'}">${watched(v.id) ? '✓ شاهدته' : 'شاهد'}</span></div>`;
