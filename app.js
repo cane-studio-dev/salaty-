@@ -198,7 +198,7 @@
     const wird = (SL.cache.wird || []).find(w => w.date === SL.dkey()), wdone = getWD()[SL.dkey()];
     const loc = SL.location();
     return `
-      <div class="card hero"><div class="big">${g} يا ${E(first)}، تقبّل الله طاعتك 🤍</div>
+      ${SL.aboutCard ? SL.aboutCard() : ''}<div class="card hero"><div class="big">${g} يا ${E(first)}، تقبّل الله طاعتك 🤍</div>
         <div class="sub">${SL.fmtDate(new Date(now))} · ${E(loc.name)}</div>
         <div class="countdown"><div><div class="small" style="opacity:.85">الصلاة القادمة</div><div style="font-weight:700;font-size:20px">${next.icon} ${next.name}${next.tomorrow ? ' (غداً)' : ''} <span class="small num" style="opacity:.8">${SL.fmtTime(next.at)}</span></div></div><div class="t num" data-cd="until" data-at="${next.at}">${SL.fmtDur(next.at - now)}</div></div>
         ${soon ? `<div class="wudu">🚿 اقترب موعد صلاة ${next.name} — تجهّز بالوضوء وتوجّه إلى المسجد 🕌</div>` : open ? `<div class="wudu">✨ حان وقت ${open.name} — صلِّ ثم سجّلها (التسجيل متاح حتى ${SL.fmtTime(open.end)})</div>` : `<div class="wudu">⏳ ${next.name} بعد ${human(next.at - now)} — لا تنسَ أذكارك 🌿</div>`}
