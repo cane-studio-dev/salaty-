@@ -18,7 +18,7 @@
   const wrap = (inner, cov) => `<div class="vbox" oncontextmenu="return false">${inner}${cov ? '<div class="vcov t"></div><div class="vcov b"></div>' : ''}<div class="vwm"><img src="logo.svg" alt=""><span>صلاتي</span></div><button class="vfs" data-act="vidFs" aria-label="ملء الشاشة">⛶</button></div>`;
   const player = v => {
     const y = ytId(v.url), d = driveId(v.url), u = safeUrl(v.url);
-    if (y) return wrap(`<iframe src="https://www.youtube-nocookie.com/embed/${y}?rel=0&playsinline=1&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0" allow="encrypted-media" referrerpolicy="strict-origin-when-cross-origin" loading="lazy"></iframe>`, true);
+    if (y) return wrap(`<iframe src="https://www.youtube-nocookie.com/embed/${y}?rel=0&playsinline=1&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0&origin=${encodeURIComponent(location.origin)}&widget_referrer=${encodeURIComponent(location.href.split("#")[0])}" allow="encrypted-media" referrerpolicy="strict-origin-when-cross-origin" loading="lazy"></iframe>`, true);
     if (d) return wrap(`<iframe src="https://drive.google.com/file/d/${d}/preview" allow="autoplay" loading="lazy"></iframe>`);
     if (isFile(v) && u) return wrap(`<video src="${E(u)}" controls controlsList="nofullscreen nodownload" disablepictureinpicture playsinline preload="metadata"></video>`);
     return u ? `<a class="btn block" href="${E(u)}" target="_blank" rel="noopener">فتح الرابط 🔗</a>` : '<div class="empty">الرابط غير صالح.</div>';
